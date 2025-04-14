@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thư viện sách</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+        
+        body {
+            background: #f4f4f4;
+            padding: 20px;
+            text-align: center;
+        }
+        .book-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+        }
+        #bgVideo {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            object-fit: cover;
+            z-index: -1;
+        }
+        .book-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            width: 200px;
+            padding: 15px;
+            text-align: center;
+        }
+        .book-card img {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+        }
+        .book-title {
+            display: block;
+            color: black;
+            font-weight: bold;
+            margin: 5px 0;
+            text-decoration: none;
+        }
+        .pagination {
+            margin-top: 20px;
+        }
+        .pagination button, .pagination span {
+            margin: 5px;
+            padding: 8px 12px;
+            border: none;
+            cursor: pointer;
+            background: #007bff;
+            color: white;
+            border-radius: 5px;
+        }
+        .pagination button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .pagination span.active {
+            background: #0056b3;
+        }
+        .search-container {
+            margin-bottom: 20px;
+            position: relative;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        #searchInput {
+            width: 100%;
+            padding: 12px 20px;
+            font-size: 16px;
+            border-radius: 25px;
+            border: 2px solid #007bff;
+            outline: none;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        
+        #searchInput:focus {
+            border-color: #0056b3;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        }
+        
+        #searchInput::placeholder {
+            color: #888;
+            font-style: italic;
+        }
+        .navbar {
+            margin: 20px 0;
+            display: flex;
+            justify-content: flex-end;
+            gap: 15px;
+        }
+        .navbar button {
+            padding: 10px 15px;
+            font-size: 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .navbar button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="navbar">
+        <button onclick="window.location.href='/user_profile'">Thông tin cá nhân</button>
+        <button onclick="logout()">Đăng xuất</button>
+    </div>
+    <video id="bgVideo" autoplay loop muted>
+        <source src="73478-548608753_medium.mp4" type="video/mp4">
+    </video>
+    <div class="search-container">
+        <input type="text" id="searchInput" placeholder="Tìm kiếm sách...">
+    </div>
+    <div class="book-container" id="bookContainer"></div>
+    <div class="pagination" id="pagination">
+        <button id="prevPage" disabled>Trước</button>
+        <span id="pageNumbers"></span>
+        <button id="nextPage">Sau</button>
+    </div>
+    
+    <script>
+        let books = [];
+        let filteredBooks = [];
+        const booksPerPage = 6;
+        let currentPage = 1;
+
+        fetch("/books")
+            .then(response => response.json())
+            .then(data => {
+                books = data;
+                filteredBooks = books;
+                renderBooks();
+            });
+
+        function renderBooks() {
+            const bookContainer = document.getElementById("bookContainer");
+            bookContainer.innerHTML = "";
+            const start = (currentPage - 1) * booksPerPage;
+            const end = start + booksPerPage;
+            const booksToShow = filteredBooks.slice(start, end);
+
+            booksToShow.forEach(book => {
+                const bookCard = document.createElement("div");
+                bookCard.className = "book-card";
+                bookCard.innerHTML = `
+                    <img src="${book.image || 'placeholder.jpg'}" alt="${book.book}">
+                    <a href="/book-detail.html?id=${book.book_id}" class="book-title">${book.book}</a>
+                    <p>Tác giả: <a href="/author.html?id=${book.Author_ID}" class="book-author">${book.author}</a></p>
+                    <p>Chủ đề: <a href="/subject.html?id=${book.subject_id}" class="book-subject">${book["book subject"]}</a></p>
+                    <p>Nhà xuất bản: <a href="/book_publisher.html?id=${book.publisher_id}" class="book-publisher">${book["book publisher"]}</a></p>
+
+                `;
+                bookContainer.appendChild(bookCard);
+            });
+            renderPagination();
+        }
+
+        function renderPagination() {
+            const totalPages = Math.ceil(filteredBooks.length / booksPerPage);
+            const pageNumbers = document.getElementById("pageNumbers");
+            pageNumbers.innerHTML = "";
+
+            let startPage = Math.max(1, currentPage - 2);
+            let endPage = Math.min(totalPages, startPage + 4);
+
+            if (endPage - startPage < 4) {
+                startPage = Math.max(1, endPage - 4);
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                const pageNumber = document.createElement("span");
+                pageNumber.textContent = i;
+                pageNumber.classList.add("page-number");
+                if (i === currentPage) pageNumber.classList.add("active");
+                pageNumber.addEventListener("click", () => {
+                    currentPage = i;
+                    renderBooks();
+                });
+                pageNumbers.appendChild(pageNumber);
+            }
+
+            if (endPage < totalPages) {
+                const dots = document.createElement("span");
+                dots.textContent = "...";
+                pageNumbers.appendChild(dots);
+            }
+
+            document.getElementById("prevPage").disabled = currentPage === 1;
+            document.getElementById("nextPage").disabled = currentPage === totalPages;
+        }
+
+        document.getElementById("prevPage").addEventListener("click", () => {
+            if (currentPage > 1) {
+                currentPage--;
+                renderBooks();
+            }
+        });
+        
+        document.getElementById("nextPage").addEventListener("click", () => {
+            if (currentPage < Math.ceil(filteredBooks.length / booksPerPage)) {
+                currentPage++;
+                renderBooks();
+            }
+        });
+
+        function searchBooks() {
+            const searchInput = document.getElementById("searchInput").value.toLowerCase().trim();
+            currentPage = 1;
+            filteredBooks = searchInput === "" ? books : books.filter(book =>
+                book.book.toLowerCase().includes(searchInput) || 
+                book.author.toLowerCase().includes(searchInput) || 
+                book["book subject"].toLowerCase().includes(searchInput)
+            );
+            renderBooks();
+        }
+        function logout() {
+            // Xóa session hoặc cookie (tuỳ vào cách bạn quản lý đăng nhập)
+            window.location.href = '/'; // Chuyển hướng về trang đăng nhập
+        }
+        document.getElementById("searchInput").addEventListener("input", searchBooks);
+    </script>
+</body>
+</html>

@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Thông tin cá nhân</title>
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+      color: white;
+    }
+
+    #bgVideo {
+      position: fixed;
+      top: 0;
+      left: 0;
+      min-width: 100%;
+      min-height: 100%;
+      z-index: -1;
+      object-fit: cover;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 100px auto;
+      padding: 30px;
+      background: rgba(0, 0, 0, 0.7);
+      border-radius: 15px;
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .info-row {
+      margin-bottom: 20px;
+    }
+
+    label {
+      font-weight: bold;
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    input {
+      width: 100%;
+      padding: 8px;
+      border-radius: 5px;
+      border: none;
+    }
+
+    .password-field {
+      display: flex;
+      align-items: center;
+    }
+
+    .btn {
+      background-color: #007bff;
+      border: none;
+      padding: 10px 20px;
+      color: white;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    .btn:hover {
+      background-color: #0056b3;
+    }
+
+    .back-btn {
+      display: block;
+      text-align: center;
+      margin-top: 30px;
+    }
+  </style>
+</head>
+<body>
+
+  <video id="bgVideo" autoplay muted loop>
+    <source src="73478-548608753_medium.mp4" type="video/mp4">
+  </video>
+
+  <div class="container">
+    <h2>Thông tin cá nhân</h2>
+
+    <div class="info-row">
+      <label for="fullName">Họ tên:</label>
+      <input type="text" id="fullName" />
+    </div>
+
+    <div class="info-row">
+      <label for="email">Email:</label>
+      <input type="email" id="email" />
+    </div>
+
+    <div class="info-row">
+      <label for="phone">Số điện thoại:</label>
+      <input type="text" id="phone" />
+    </div>
+
+    <div class="info-row password-field">
+      <label for="password">Mật khẩu:</label>
+      <input type="password" id="password" disabled value="********" style="flex: 1;"/>
+      <button class="btn" onclick="window.location.href='/change_password.html'" style="margin-left: 15px;">
+        Thay đổi
+      </button>
+    </div>
+
+    <div>
+      <button class="btn" onclick="updateUser()">Lưu thay đổi</button>
+    </div>
+    <h2 style="margin-top: 40px;">Sách đã mượn</h2>
+<div id="borrowedBooks">
+  <p>Đang tải danh sách...</p>
+</div>
+
+    <div class="back-btn">
+      <button class="btn" onclick="goBack()">Quay về trang chính</button>
+
+    </div>
+  </div>
+
+  <script>
+    let userId = null;
+
+    // Lấy thông tin người dùng hiện tại
+    fetch("/current-user")
+      .then(res => res.json())
+      .then(user => {
+        userId = user.id; // nếu backend trả về id
+        userRole = user.role; 
+        document.getElementById("fullName").value = user.Full_Name || "";
+        document.getElementById("email").value = user.email || "";
+        document.getElementById("phone").value = user.Phone_number || "";
+      });
+      function loadBorrowedBooks() {
+        fetch("/borrowed-books")
+          .then(res => res.json())
+          .then(data => {
+            const container = document.getElementById("borrowedBooks");
+      
+            if (!data.length) {
+              container.innerHTML = "<p>Không có sách nào đang mượn.</p>";
+              return;
+            }
+      
+            let tableHTML = `
+              <table style="width: 100%; border-collapse: collapse; background-color: rgba(255, 255, 255, 0.05);">
+                <thead>
+                  <tr style="background-color: rgba(255, 255, 255, 0.2);">
+                    <th style="padding: 10px; border: 1px solid #ccc;">Tên sách</th>
+                    <th style="padding: 10px; border: 1px solid #ccc;">Tác giả</th>
+                    <th style="padding: 10px; border: 1px solid #ccc;">Ngày mượn</th>
+                    <th style="padding: 10px; border: 1px solid #ccc;">Hạn trả</th>
+                    <th style="padding: 10px; border: 1px solid #ccc;">Trạng thái</th>
+                    <th style="padding: 10px; border: 1px solid #ccc;">Hành động</th>
+                  </tr>
+                </thead>
+                <tbody>
+            `;
+      
+            data.forEach(book => {
+              const borrowDate = new Date(book.Borrow_Date).toLocaleDateString();
+              const returnDate = new Date(book.Return_Date).toLocaleDateString();
+              const status = book.Status;
+      
+              let actionBtn = "";
+        if (status === "Đang mượn") {
+          actionBtn = `<button class="btn" onclick="returnBook(${book.Borrow_ID})" style="background-color: #dc3545;">Trả lại</button>`;
+        } else if (status === "Trễ hạn") {
+          actionBtn = `<button class="btn" onclick="showPenalty(${book.Borrow_ID})" style="background-color: orange;">Thông tin phạt</button>`;
+        } else {
+          actionBtn = `<span style="color: #ccc;">Không có</span>`; // Đã trả
+        }
+      
+              tableHTML += `
+                <tr>
+                  <td style="padding: 10px; border: 1px solid #ccc;">${book.book}</td>
+                  <td style="padding: 10px; border: 1px solid #ccc;">${book.author}</td>
+                  <td style="padding: 10px; border: 1px solid #ccc;">${borrowDate}</td>
+                  <td style="padding: 10px; border: 1px solid #ccc;">${returnDate}</td>
+                  <td style="padding: 10px; border: 1px solid #ccc;">${status}</td>
+                  <td style="padding: 10px; border: 1px solid #ccc;">${actionBtn}</td>
+                </tr>
+              `;
+            });
+      
+            tableHTML += `</tbody></table>`;
+            container.innerHTML = tableHTML;
+          });
+      }
+      
+    function returnBook(borrowId) {
+        fetch(`/return-book/${borrowId}`, { method: "DELETE" })
+          .then(res => res.json())
+          .then(data => {
+            alert(data.message || "Đã trả sách!");
+            loadBorrowedBooks(); // refresh lại danh sách
+          })
+          .catch(err => {
+            console.error(err);
+            alert("Lỗi khi trả sách");
+          });
+      }
+      function goBack() {
+        if (userRole === "user") {
+          window.location.href = "index.html";
+        } else {
+          window.location.href = "employee_home.html";
+        }
+      }
+      
+    function updateUser() {
+      const fullName = document.getElementById("fullName").value;
+      const email = document.getElementById("email").value;
+      const phone = document.getElementById("phone").value;
+
+      fetch("/update-user", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          Full_Name: fullName,
+          email: email,
+          Phone_number: phone
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        alert("Cập nhật thành công!");
+      })
+      .catch(err => {
+        alert("Cập nhật thất bại!");
+        console.error(err);
+      });
+    }
+    loadBorrowedBooks();
+  </script>
+</body>
+</html>

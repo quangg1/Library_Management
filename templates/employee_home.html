@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Quản lý sách</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #111; /* nền tối hơn */
+            padding: 20px;
+            color: #f1f1f1;
+        }
+        #bgVideo {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            object-fit: cover;
+            z-index: -1;
+        }
+        h1 {
+            text-align: center;
+            color: #f8f9fa;
+            margin-bottom: 20px;
+            text-shadow: 0 0 5px rgba(255,255,255,0.2);
+        }
+    
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #1e1e2f;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+            color: #f8f8f8;
+        }
+    
+        th, td {
+            padding: 12px;
+            text-align: center;
+            border-bottom: 1px solid #444;
+        }
+    
+        th {
+            background-color: #343a40;
+            color: #ffffff;
+            text-transform: uppercase;
+        }
+    
+        tr:nth-child(even) {
+            background-color: #2c2c3e;
+        }
+    
+        tr:hover {
+            background-color: #3b3b4f;
+        }
+    
+        img.book-img {
+            width: 60px;
+            height: auto;
+            border-radius: 4px;
+            border: 1px solid #666;
+        }
+    
+        .edit-btn {
+            background-color: #ffc107;
+            color: black;
+        }
+    
+        .edit-btn:hover {
+            background-color: #e0a800;
+        }
+    
+        .delete-btn {
+            background-color: #dc3545;
+            color: white;
+        }
+    
+        .delete-btn:hover {
+            background-color: #c82333;
+        }
+    
+        .pagination button {
+            padding: 6px 12px;
+            margin: 0 4px;
+            border: 1px solid #666;
+            background: #222;
+            color: white;
+        }
+    
+        .pagination button.active {
+            background-color: #007bff;
+            border-color: #007bff;
+        }
+    
+        .pagination button:hover {
+            background-color: #444;
+        }
+    
+        .navbar button {
+            background-color: #007bff;
+        }
+    
+        .navbar button:hover {
+            background-color: #0056b3;
+        }
+        .top-right {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+            z-index: 2;
+        }
+        
+        .top-right button {
+            padding: 6px 12px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        
+        .top-right button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <video id="bgVideo" autoplay loop muted>
+        <source src="73478-548608753_medium.mp4" type="video/mp4">
+    </video>
+    <h1>Trang quản lý sách</h1>
+
+    <div class="navbar">
+        <button onclick="window.location.href='/add-book.html'">➕ Thêm sách</button>
+    </div>
+    <div class="top-right">
+        <button onclick="window.location.href='/user_profile'">👤 Thông tin cá nhân</button>
+        <button onclick="logout()">🚪 Đăng xuất</button>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>STT</th>
+                <th>Ảnh</th>
+                <th>Tên sách</th>
+                <th>Tác giả</th>
+                <th>Chủ đề</th>
+                <th>NXB</th>
+                <th>Hành động</th>
+            </tr>
+        </thead>
+        <tbody id="bookTableBody">
+            <!-- Sách sẽ được thêm bằng JS -->
+        </tbody>
+    </table>
+
+    <div class="pagination" id="pagination"></div>
+
+    <script>
+        let allBooks = [];
+        let currentPage = 1;
+        const booksPerPage = 5;
+
+        function logout() {
+            window.location.href = "/";
+        }
+
+        fetch("/books")
+            .then(response => response.json())
+            .then(data => {
+                allBooks = data;
+                renderPagination();
+                renderTable();
+            });
+
+        function renderPagination() {
+            const pageCount = Math.ceil(allBooks.length / booksPerPage);
+            const pagination = document.getElementById("pagination");
+            pagination.innerHTML = "";
+
+            for (let i = 1; i <= pageCount; i++) {
+                const btn = document.createElement("button");
+                btn.textContent = i;
+                if (i === currentPage) btn.classList.add("active");
+                btn.onclick = () => {
+                    currentPage = i;
+                    renderTable();
+                    renderPagination();
+                };
+                pagination.appendChild(btn);
+            }
+        }
+
+        function renderTable() {
+            const start = (currentPage - 1) * booksPerPage;
+            const end = start + booksPerPage;
+            const tableBody = document.getElementById("bookTableBody");
+            tableBody.innerHTML = "";
+
+            const currentBooks = allBooks.slice(start, end);
+            currentBooks.forEach((book, index) => {
+                const row = document.createElement("tr");
+                row.innerHTML = `
+                    <td>${start + index + 1}</td>
+                    <td><img class="book-img" src="${book.image || 'placeholder.jpg'}" alt="${book.book}"></td>
+                    <td>${book.book}</td>
+                    <td>${book.author}</td>
+                    <td>${book["book subject"]}</td>
+                    <td>${book["book publisher"]}</td>
+                    <td>
+                        <button class="action-btn edit-btn" onclick="editBook(${book.book_id})">Sửa</button>
+                        <button class="action-btn delete-btn" onclick="deleteBook(${book.book_id})">Xóa</button>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+
+        function editBook(bookId) {
+            window.location.href = `/edit-book.html?id=${bookId}`;
+        }
+
+        function deleteBook(bookId) {
+            if (confirm("Bạn có chắc chắn muốn xóa sách này?")) {
+                fetch(`/delete-book/${bookId}`, {
+                    method: "DELETE"
+                }).then(res => {
+                    if (res.ok) {
+                        alert("Đã xóa sách");
+                        location.reload();
+                    } else {
+                        alert("Xóa thất bại");
+                    }
+                });
+            }
+        }
+    </script>
+
+</body>
+</html>

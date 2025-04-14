@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Chỉnh sửa sách</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      padding: 20px;
+      margin: 0;
+      background-color: #000; /* fallback nếu video không chạy */
+      color: #f1f1f1;
+    }
+  
+    h1 {
+      text-align: center;
+      color: #ffffff;
+      text-shadow: 1px 1px 4px #000;
+    }
+  
+    form {
+      max-width: 650px;
+      margin: 40px auto;
+      background: rgba(0, 0, 0, 0.75); /* nền tối mờ */
+      padding: 25px 30px;
+      border-radius: 15px;
+      box-shadow: 0 4px 20px rgba(255,255,255,0.1);
+      backdrop-filter: blur(10px);
+    }
+  
+    label {
+      display: block;
+      margin-top: 15px;
+      font-weight: 600;
+      color: #dddddd;
+    }
+  
+    input, textarea {
+      width: 100%;
+      padding: 10px;
+      margin-top: 6px;
+      border-radius: 8px;
+      border: 1px solid #444;
+      background-color: #1e1e1e;
+      color: #ffffff;
+    }
+  
+    input:focus {
+      outline: none;
+      border-color: #00bfff;
+      box-shadow: 0 0 5px rgba(0,191,255,0.6);
+    }
+  
+    button {
+      margin-top: 20px;
+      padding: 12px 18px;
+      background: #00bfff;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background 0.3s;
+    }
+  
+    button:hover {
+      background: #0099cc;
+    }
+  
+    .back-btn {
+      background: #6c757d;
+      margin-left: 10px;
+    }
+  
+    #preview-image {
+      margin-top: 12px;
+      max-height: 200px;
+      border-radius: 8px;
+      border: 2px solid #555;
+      display: block;
+    }
+  
+    #bgVideo {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      object-fit: cover;
+      z-index: -1;
+    }
+  
+    ::placeholder {
+      color: #aaa;
+    }
+  </style>
+</head>
+<body>
+    <video id="bgVideo" autoplay loop muted>
+        <source src="73478-548608753_medium.mp4" type="video/mp4">
+    </video>
+  <h1>Chỉnh sửa sách</h1>
+  <form action="/edit-book" method="POST">
+    <!-- Hidden ID -->
+    <input type="hidden" name="book_id" id="book_id">
+
+    <label>Tên sách</label>
+    <input type="text" name="book" id="book" required>
+
+    <label>Tác giả</label>
+    <input type="text" name="author" id="author" required>
+
+    <label>Chủ đề</label>
+    <input type="text" name="book_subject" id="book_subject" required>
+
+    <label>Nhà xuất bản</label>
+    <input type="text" name="book_publisher" id="book_publisher" required>
+
+    <label>Link ảnh (URL)</label>
+    <input type="text" name="image" id="image">
+    <img id="preview-image" src="" alt="Ảnh sách" style="display:none;" />
+
+    <label>Năm tái bản mới nhất</label>
+    <input type="text" name="pub_date" id="pub_date">
+
+    <label>Năm xuất bản đầu tiên</label>
+    <input type="text" name="earliest_pub_date" id="earliest_pub_date">
+
+    <label>Ngôn ngữ</label>
+    <input type="text" name="language" id="language">
+
+    <label>ISBN</label>
+    <input type="text" name="isbn" id="isbn">
+
+    <button type="submit">Cập nhật</button>
+    <button class="back-btn" type="button" onclick="window.location.href='/employee_home.html'">Quay lại</button>
+  </form>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("id");
+
+    fetch(`/book/${id}`) 
+      .then(res => res.json())
+      .then(book => {
+        document.getElementById("book_id").value = book.book_id;
+        document.getElementById("book").value = book.book;
+        document.getElementById("author").value = book.author;
+        document.getElementById("book_subject").value = book["book subject"];
+        document.getElementById("book_publisher").value = book["book publisher"];
+        document.getElementById("image").value = book.image || '';
+        document.getElementById("language").value = book.language || '';
+        document.getElementById("isbn").value = book.ISBN || '';
+        document.getElementById("pub_date").value= book["publication date"] || '';
+        document.getElementById("earliest_pub_date").value= book["earliest publication date"] || '';
+
+        // Hiển thị ảnh nếu có link ảnh
+        if (book.image) {
+          const img = document.getElementById("preview-image");
+          img.src = book.image;
+          img.style.display = 'block';
+        }
+      });
+      document.querySelector("form").addEventListener("submit", async function(event) {
+        event.preventDefault(); // Ngăn form gửi theo cách mặc định
+    
+        const formData = {
+          book_id: document.getElementById("book_id").value,
+          book: document.getElementById("book").value,
+          author: document.getElementById("author").value,
+          book_subject: document.getElementById("book_subject").value,
+          book_publisher: document.getElementById("book_publisher").value,
+          image: document.getElementById("image").value,
+          pub_date: document.getElementById("pub_date").value,
+          earliest_pub_date: document.getElementById("earliest_pub_date").value,
+          language: document.getElementById("language").value,
+          isbn: document.getElementById("isbn").value
+        };
+    
+        try {
+          const response = await fetch("/edit-book", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify(formData)
+          });
+    
+          if (response.ok) {
+            alert("Cập nhật thành công!");
+            window.location.reload();
+          } else {
+            const result = await response.json();
+            alert("Lỗi cập nhật: " + (result.message || "Không xác định"));
+          }
+        } catch (err) {
+          alert("Lỗi kết nối tới server.");
+          console.error(err);
+        }
+      });
+  </script>
+</body>
+</html>

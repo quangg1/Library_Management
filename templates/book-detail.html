@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chi tiết sách</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f4f4;
+            padding: 20px;
+            text-align: center;
+        }
+        .book-detail {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+            margin: auto;
+        }
+        .book-detail img {
+            width: 100%;
+            border-radius: 8px;
+        }
+        #bgVideo {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            object-fit: cover;
+            z-index: -1;
+        } 
+        .book-detail h2 {
+            margin: 15px 0;
+        }
+        .book-detail p {
+            color: #555;
+        }
+        .back-btn {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 15px;
+            background: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+        .back-btn:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+
+    <video id="bgVideo" autoplay loop muted>
+        <source src="73478-548608753_medium.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+    </video>
+    <div class="book-detail" id="bookDetail">
+        <p>Đang tải thông tin sách...</p>
+    </div>
+    <a href="index.html" class="back-btn">Quay lại</a>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const params = new URLSearchParams(window.location.search);
+            const bookId = params.get("id");
+
+            if (!bookId) {
+                document.getElementById("bookDetail").innerHTML = "<p>Không tìm thấy sách</p>";
+                return;
+            }
+
+            fetch(`/book/${bookId}`)
+                .then(response => response.json())
+                .then(book => {
+                    if (book.error) {
+                        document.getElementById("bookDetail").innerHTML = "<p>Sách không tồn tại</p>";
+                        return;
+                    }
+
+                    const bookDetail = document.getElementById("bookDetail");
+                    bookDetail.innerHTML = `
+                        <img src="${book.image || 'placeholder.jpg'}" alt="${book.book}">
+                        <h2>${book.book}</h2>
+                        <p><strong>Tác giả:</strong> ${book.author}</p>
+                        <p><strong>Nhà xuất bản:</strong> ${book["book publisher"]}</p>
+                        <p><strong>Chủ đề:</strong> ${book["book subject"]}</p>
+                        <p><strong>ISBN:</strong> ${book.ISBN}</p>
+                        <button id="borrowBtn" class="back-btn" style="background: #28a745;">Mượn sách</button>
+                    `;
+                    document.getElementById("borrowBtn").addEventListener("click", () => {
+                        fetch("/borrow", {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json"
+                            },
+                            body: JSON.stringify({ bookId: bookId })
+                        })
+                        .then(res => res.json())
+                        .then(data => {
+                            alert(data.message || "Mượn sách thành công!");
+                        })
+                        .catch(err => {
+                            console.error("Lỗi khi mượn sách:", err);
+                            alert("Có lỗi xảy ra khi mượn sách.");
+                        });
+                    });
+                })
+                .catch(error => {
+                    console.error("Lỗi khi tải thông tin sách:", error);
+                    document.getElementById("bookDetail").innerHTML = "<p>Lỗi khi tải thông tin sách</p>";
+                });
+        });
+
+    </script>
+</body>
+</html>

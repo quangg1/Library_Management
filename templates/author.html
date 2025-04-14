@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chi tiết tác giả</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .author-detail {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(255, 255, 255, 0.2);
+            max-width: 500px;
+            width: 90%;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            text-align: left;
+        }
+        .author-detail h2 {
+            color: #ffcc00;
+            text-align: center;
+        }
+        .author-detail p {
+            color: #eee;
+        }
+        .back-btn {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 15px;
+            background: rgba(0, 123, 255, 0.8);
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+        .back-btn:hover {
+            background: rgba(0, 86, 179, 0.8);
+        }
+        #bgVideo {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            object-fit: cover;
+            z-index: -1;
+        }
+    </style>
+</head>
+<body>
+    <video id="bgVideo" autoplay loop muted>
+        <source src="73478-548608753_medium.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+    </video>
+    <div class="author-detail" id="authorDetail">
+        <p>Đang tải thông tin tác giả...</p>
+    </div>
+    <a href="index.html" class="back-btn">Quay lại</a>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const params = new URLSearchParams(window.location.search);
+            const authorId = params.get("id");
+        
+            if (!authorId) {
+                document.getElementById("authorDetail").innerHTML = "<p>Không tìm thấy tác giả</p>";
+                return;
+            }
+        
+            fetch(`/author/${authorId}`)
+                .then(response => {
+                    if (!response.ok) throw new Error("Lỗi mạng");
+                    return response.json();
+                })
+                .then(author => {
+                    if (author.error) {
+                        document.getElementById("authorDetail").innerHTML = "<p>Tác giả không tồn tại</p>";
+                        return;
+                    }
+        
+                    console.log("📌 API Author trả về:", author);
+                    
+                    // Kiểm tra nếu có book in series
+                    const bookSeriesId = author["books in series"];
+                    if (!bookSeriesId) {
+                        renderAuthorDetails();
+                        return;
+                    }
+        
+                    // Gọi API book series
+                    fetch(`/book-series/${bookSeriesId}`)
+                        .then(response => {
+                            if (!response.ok) throw new Error("Lỗi khi tải loạt sách");
+                            return response.json();
+                        })
+                        .then(data => {
+                            console.log("📌 Kết quả API /book-series:", data);
+                            // Lấy tên loạt sách từ cấu trúc dữ liệu trả về
+                            const bookSeriesName = data?.book_series || "Không có thông tin";
+                            renderAuthorDetails(bookSeriesName);
+                        })
+                        .catch(error => {
+                            console.error("❌ Lỗi khi tải loạt sách:", error);
+                            renderAuthorDetails("Không thể tải thông tin loạt sách");
+                        });
+                    
+                    function renderAuthorDetails(bookSeriesName = "Không có thông tin") {
+                        document.getElementById("authorDetail").innerHTML = `
+                            <h2>${author.author}</h2>
+                            <p><strong>Ngày sinh:</strong> ${author["birth date"] || "Không có thông tin"}</p>
+                            <p><strong>Ngày mất:</strong> ${author["death date"] || "Chưa xác định"}</p>
+                            <p><strong>Số sách đã xuất bản:</strong> ${author["number of books published"]}</p>
+                            <p><strong>Ngày xuất bản đầu tiên:</strong> ${author["first publication date"]}</p>
+                            <p><strong>Ngày xuất bản cuối:</strong> ${author["last publication date"]}</p>
+                            <p><strong>Loạt sách:</strong> <a href="/book_series.html?id=${bookSeriesId}">${bookSeriesName}</a></p>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    console.error("❌ Lỗi khi tải thông tin tác giả:", error);
+                    document.getElementById("authorDetail").innerHTML = "<p>Lỗi khi tải thông tin tác giả</p>";
+                });
+        });
+        
+    </script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+{
+  "name": "librabry_management_project",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "bcryptjs": "^3.0.2",
+    "express": "^4.21.2",
+    "express-session": "^1.18.1",
+    "librabry_management_project": "file:",
+    "mysql2": "^3.13.0",
+    "path": "^0.12.7"
+  }
+}

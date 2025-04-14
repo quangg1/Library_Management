@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chi tiết Loạt sách</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #121212;
+            padding: 20px;
+            text-align: center;
+            color: #fff;
+        }
+        .bookseries-detail {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(8px);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            max-width: 800px;
+            margin: auto;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        #bgVideo {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            object-fit: cover;
+            z-index: -1;
+        }
+        .bookseries-detail h2 {
+            color: #f1c40f;
+            margin-bottom: 15px;
+        }
+        .bookseries-detail p {
+            color: #ddd;
+            text-align: left;
+            margin: 10px 0;
+        }
+        .back-btn {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 15px;
+            background: rgba(0, 123, 255, 0.8);
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: 0.3s;
+        }
+        .back-btn:hover {
+            background: rgba(0, 123, 255, 1);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: rgba(0, 0, 0, 0.3);
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        th {
+            background-color: rgba(241, 196, 15, 0.2);
+            color: #f1c40f;
+        }
+    </style>
+</head>
+<body>
+
+    <video id="bgVideo" autoplay loop muted>
+        <source src="73478-548608753_medium.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+    </video>
+    <div class="bookseries-detail" id="bookseriesDetail">
+        <p>Đang tải thông tin loạt sách...</p>
+    </div>
+    <a href="index.html" class="back-btn">Quay lại</a>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const params = new URLSearchParams(window.location.search);
+            const seriesId = params.get("id");
+    
+            if (!seriesId) {
+                document.getElementById("bookseriesDetail").innerHTML = "<p>Không tìm thấy loạt sách</p>";
+                return;
+            }
+    
+            fetch(`/book-series-detail/${seriesId}`)  // Đã sửa endpoint
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error("Network response was not ok");
+                    }
+                    return response.json();
+                })
+                .then(bookseries => {
+                    console.log("Dữ liệu nhận được:", bookseries); // Thêm dòng này để debug
+                    
+                    if (bookseries.error) {
+                        document.getElementById("bookseriesDetail").innerHTML = "<p>Loạt sách không tồn tại</p>";
+                        return;
+                    }
+    
+                    const bookseriesDetail = document.getElementById("bookseriesDetail");
+                    bookseriesDetail.innerHTML = `
+                        <h2>${bookseries["book series"] || "Không có tên"}</h2>
+                        
+                        <table>
+                            <tr>
+                                <th>Thông tin</th>
+                                <th>Giá trị</th>
+                            </tr>
+                            <tr>
+                                <td><strong>Số tác giả</strong></td>
+                                <td>${bookseries["number of authors"] || "Không có dữ liệu"}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Số sách</strong></td>
+                                <td>${bookseries["number of books"] || "Không có dữ liệu"}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Ngày xuất bản sớm nhất</strong></td>
+                                <td>${bookseries["earliest publication date"] || "Không có dữ liệu"}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Ngày xuất bản gần nhất</strong></td>
+                                <td>${bookseries["latest publication date"] || "Không có dữ liệu"}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Ngày xuất bản trung bình</strong></td>
+                                <td>${bookseries["average publication date"] || "Không có dữ liệu"}</td>
+                            </tr>
+                        </table>
+                    `;
+                })
+                .catch(error => {
+                    console.error("Lỗi khi tải thông tin loạt sách:", error);
+                    document.getElementById("bookseriesDetail").innerHTML = `
+                        <p>Lỗi khi tải thông tin loạt sách</p>
+                        <p>Chi tiết lỗi: ${error.message}</p>
+                    `;
+                });
+        });
+    </script>
+</body>
+</html>
