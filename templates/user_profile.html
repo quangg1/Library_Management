@@ -141,12 +141,18 @@
         fetch("/borrowed-books")
           .then(res => res.json())
           .then(data => {
+            console.log(data);  // Kiểm tra dữ liệu trả về
+      
             const container = document.getElementById("borrowedBooks");
       
-            if (!data.length) {
+            // Kiểm tra xem có dữ liệu hay không
+            if (data.length === 0 || data[0].length === 0) {
               container.innerHTML = "<p>Không có sách nào đang mượn.</p>";
               return;
             }
+      
+            // Lấy dữ liệu sách từ mảng con đầu tiên
+            const books = data[0];  // data[0] chứa mảng sách
       
             let tableHTML = `
               <table style="width: 100%; border-collapse: collapse; background-color: rgba(255, 255, 255, 0.05);">
@@ -163,19 +169,20 @@
                 <tbody>
             `;
       
-            data.forEach(book => {
+            // Duyệt qua từng sách để hiển thị vào bảng
+            books.forEach(book => {
               const borrowDate = new Date(book.Borrow_Date).toLocaleDateString();
               const returnDate = new Date(book.Return_Date).toLocaleDateString();
               const status = book.Status;
       
               let actionBtn = "";
-        if (status === "Đang mượn") {
-          actionBtn = `<button class="btn" onclick="returnBook(${book.Borrow_ID})" style="background-color: #dc3545;">Trả lại</button>`;
-        } else if (status === "Trễ hạn") {
-          actionBtn = `<button class="btn" onclick="showPenalty(${book.Borrow_ID})" style="background-color: orange;">Thông tin phạt</button>`;
-        } else {
-          actionBtn = `<span style="color: #ccc;">Không có</span>`; // Đã trả
-        }
+              if (status === "Đang mượn") {
+                actionBtn = `<button class="btn" onclick="returnBook(${book.Borrow_ID})" style="background-color: #dc3545;">Trả lại</button>`;
+              } else if (status === "Trễ hạn") {
+                actionBtn = `<button class="btn" onclick="showPenalty(${book.Borrow_ID})" style="background-color: orange;">Thông tin phạt</button>`;
+              } else {
+                actionBtn = `<span style="color: #ccc;">Không có</span>`; // Đã trả
+              }
       
               tableHTML += `
                 <tr>
@@ -191,8 +198,14 @@
       
             tableHTML += `</tbody></table>`;
             container.innerHTML = tableHTML;
+          })
+          .catch(err => {
+            console.error("Error loading borrowed books:", err);
+            document.getElementById("borrowedBooks").innerHTML = "<p>Không thể tải danh sách sách đã mượn.</p>";
           });
       }
+      
+    
       
     function returnBook(borrowId) {
         fetch(`/return-book/${borrowId}`, { method: "DELETE" })

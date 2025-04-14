@@ -1,5 +1,5 @@
 const mysql = require("mysql2");
-const connection = mysql.createConnection({
+const pool = mysql.createConnection({
     host: "localhost",
     user: "root",
     password: "01012004",
@@ -17,8 +17,8 @@ function getBookSeriesByAuthor(bookSeriesId, callback) {
 
     console.log("📌 Query SQL chạy với bookSeriesId:", bookSeriesId);
 
-    // ⚠️ Sửa db.query() thành connection.query()
-    connection.query(query, [bookSeriesId], (err, results) => {
+    // Sửa connection.query() thành pool.query()
+    pool.query(query, [bookSeriesId], (err, results) => {
         if (err) {
             console.error("❌ Lỗi SQL:", err);
             return callback(err, null);
