@@ -1,31 +1,33 @@
+require('dotenv').config(); 
 const mysql = require("mysql2");
 
-// Kết nối đến cơ sở dữ liệu
-const connection = mysql.createConnection({
-    host: "localhost",
-    user: "root",
-    password: "01012004",
-    database: "librabry_management"
+// Tạo pool kết nối MySQL
+const pool = mysql.createPool({
+    host: process.env.DB_HOST,  
+    user: process.env.DB_USER,  
+    password: process.env.DB_PASSWORD,  
+    database: process.env.DB_NAME,  
+    port: process.env.DB_PORT  
 });
 
-// Hàm lấy dữ liệu sách
-function getAuthorByBook(bookId, callback) {
+// Sử dụng Promise API
+const db = pool.promise(); 
+
+// Hàm lấy dữ liệu tác giả theo bookId
+async function getAuthorByBook(bookId) {
     const query = `
         SELECT a.* FROM all_authors a
         JOIN all_book b ON a.author_id = b.author_id
         WHERE b.book_id = ?
     `;
-
-    connection.query(query, [bookId], (err, results) => {
-        if (err) {
-            callback(err, null);
-        } else {
-            callback(null, results);
-        }
-    });
+    
+    try {
+        const [results] = await db.query(query, [bookId]);  // Query trả về kết quả dưới dạng mảng
+        return results;
+    } catch (err) {
+        console.error("Lỗi khi truy vấn:", err);
+        throw err;
+    }
 }
 
-
-
-module.exports = { getAuthorByBook};
-
+module.exports = { getAuthorByBook };

@@ -1,12 +1,12 @@
 const mysql = require("mysql2");
-
+require('dotenv').config(); 
 // Tạo Pool kết nối
 const pool = mysql.createPool({
-    connectionLimit: 10,  // Số kết nối tối đa trong pool
-    host: "localhost",    
-    user: "root",         
-    password: "01012004",  
-    database: "Librabry_Management"  
+    host: process.env.DB_HOST,  
+    user: process.env.DB_USER,  
+    password: process.env.DB_PASSWORD,  
+    database: process.env.DB_NAME,  
+    port: process.env.DB_PORT 
 });
 
 // Kiểm tra kết nối

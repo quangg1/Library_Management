@@ -13,6 +13,8 @@ const { getBookSeriesByAuthor } = require(__dirname + "/db_query/book_series.js"
 const session = require('express-session');
 const multer = require('multer');
 const upload = multer();
+require('dotenv').config();
+const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(session({
     secret: 'mysecretkey',
@@ -146,22 +148,20 @@ app.get("/check-subject", async (req, res) => {
 app.get("/book_publisher.html",checkAuth, (req, res) => {
     res.sendFile(path.join(__dirname, "templates", "book_publisher.html"));
 });
-app.get("/book_publisher/:id",checkAuth, async(req, res) => {
+app.get("/book_publisher/:id", checkAuth, async (req, res) => {
     const publisherId = req.params.id;
 
-    const query = "SELECT * FROM all_book_publishers WHERE publisher_id = ?"; 
-
     try {
-        // Sử dụng db.execute() hoặc db.query() với promise
-        const [results] = await db.execute(query, [publisherId]);
+        const [results] = await db.query("CALL GetPublisherById(?)", [publisherId]);
 
-        if (results.length > 0) {
-            return res.json(results[0]); // ✅ Trả về dữ liệu tác giả đúng
+        if (results[0].length > 0) {
+            return res.json(results[0][0]); // ✅ Trả về 1 record
         } else {
-            return res.status(404).json({ error: "Không tìm thấy tác giả" });
+            return res.status(404).json({ error: "Không tìm thấy nhà xuất bản" });
         }
     } catch (err) {
-        return res.status(500).json({ error: "Lỗi khi truy vấn dữ liệu tác giả" });
+        console.error(err);
+        return res.status(500).json({ error: "Lỗi khi gọi stored procedure" });
     }
 });
 app.get('/check-publisher', async (req, res) => {
@@ -183,22 +183,20 @@ app.get("/book-series/:bookSeriesId",checkAuth, (req, res) => {
         res.json({ book_series: bookSeries });
     });
 });
-app.get("/book-series-detail/:id",checkAuth, async(req, res) => {
+app.get("/book-series-detail/:id", checkAuth, async (req, res) => {
     const authorId = req.params.id;
 
-    const query = "SELECT * FROM all_book_series WHERE book_series_id = ?"; // 🔥 Truy vấn theo author_id
-
     try {
-        // Sử dụng db.execute() hoặc db.query() với promise
-        const [results] = await db.execute(query, [authorId]);
+        const [results] = await db.query("CALL GetBookSeriesDetail(?)", [authorId]);
 
-        if (results.length > 0) {
-            return res.json(results[0]); // ✅ Trả về dữ liệu tác giả đúng
+        if (results[0].length > 0) {
+            return res.json(results[0][0]);
         } else {
             return res.status(404).json({ error: "Không tìm thấy tác giả" });
         }
     } catch (err) {
-        return res.status(500).json({ error: "Lỗi khi truy vấn dữ liệu tác giả" });
+        console.error(err);
+        return res.status(500).json({ error: "Lỗi khi gọi thủ tục trong database" });
     }
 });
 app.get("/book_series.html",checkAuth, (req, res) => {
@@ -789,6 +787,6 @@ app.delete("/delete-employee/:id", async (req, res) => {
     }
 });
 // Chạy server
-app.listen(3000, () => {
-    console.log("Server chạy tại http://localhost:3000");
+app.listen(PORT, () => {
+    console.log(`Server chạy tại http://localhost:${PORT}`);
 });
