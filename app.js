@@ -787,6 +787,6 @@ app.delete("/delete-employee/:id", async (req, res) => {
     }
 });
 // Chạy server
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server chạy tại http://localhost:${PORT}`);
 });
