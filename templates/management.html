@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Quản lý</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #111;
+            color: #f1f1f1;
+            padding: 20px;
+        }
+        #bgVideo {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            object-fit: cover;
+            z-index: -1;
+        }
+        h1 {
+            text-align: center;
+            color: #f8f9fa;
+            margin-bottom: 30px;
+        }
+        .top-right {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+            z-index: 2;
+        }
+        .top-right button {
+            padding: 6px 12px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .top-right button:hover {
+            background-color: #0056b3;
+        }
+        .navbar button {
+            background-color: #28a745;
+            color: white;
+            padding: 10px 16px;
+            margin-bottom: 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .navbar button:hover {
+            background-color: #218838;
+        }
+        .list-container {
+            background: #1e1e2f;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            color: #f1f1f1;
+            margin-top: 10px;
+        }
+        
+        th, td {
+            padding: 10px;
+            border-bottom: 1px solid #444;
+            text-align: left;
+        }
+        
+        th {
+            background-color: #222;
+        }
+        
+        tr:hover {
+            background-color: #2a2a3b;
+        }
+        
+        .btn-delete {
+            background-color: #dc3545;
+            border: none;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .btn-delete:hover {
+            background-color: #c82333;
+        }
+        .list-item {
+            border-bottom: 1px solid #444;
+            padding: 10px 0;
+        }
+        .list-item:last-child {
+            border-bottom: none;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body>
+    <video id="bgVideo" autoplay loop muted>
+        <source src="73478-548608753_medium.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+    </video>
+    <h1>Trang quản lý</h1>
+
+    <div class="top-right">
+        <button onclick="window.location.href='/user_profile'">👤 Thông tin cá nhân</button>
+        <button onclick="logout()">🚪 Đăng xuất</button>
+    </div>
+
+    <div class="navbar" id="navbarActions"></div>
+
+    <div class="list-container" id="managementContent">Đang tải...</div>
+
+    <script>
+        let userType = "";
+    
+        function logout() {
+            window.location.href = "/";
+        }
+    
+        document.addEventListener("DOMContentLoaded", () => {
+            fetch("/user_type")
+                .then(res => res.json())
+                .then(data => {
+                    userType = data.userType;
+                    renderManagementUI(userType);
+                });
+        });
+    
+        function renderManagementUI(role) {
+            const navbar = document.getElementById("navbarActions");
+            const container = document.getElementById("managementContent");
+    
+            if (role === "admin") {
+                navbar.innerHTML = `<button onclick="location.href='/add-employee.html'">➕ Thêm nhân viên</button>`;
+                container.innerHTML = `<h2>👥 Danh sách nhân viên</h2><div id="employeeList">Đang tải danh sách...</div>`;
+                loadEmployees();
+            } else if (role === "employee") {
+                navbar.innerHTML = `<button onclick="location.href='/add-user.html'">➕ Thêm người dùng</button>`;
+                container.innerHTML = `<h2>👤 Danh sách người dùng</h2><div id="userList">Đang tải danh sách...</div>`;
+                loadUsers();
+            } else {
+                container.innerHTML = `<p>Bạn không có quyền truy cập vào trang này.</p>`;
+            }
+        }
+    
+        function loadEmployees() {
+            fetch("/employees")
+                .then(res => res.json())
+                .then(data => {
+                    if (data.length === 0) {
+                        document.getElementById("employeeList").innerHTML = "Không có nhân viên nào.";
+                        return;
+                    }
+        
+                    const table = `
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Họ tên</th>
+                                    <th>Email</th>
+                                    <th>SĐT</th>
+                                    <th>Hành động</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.map(e => `
+                                    <tr>
+                                        <td>${e.Full_Name}</td>
+                                        <td>${e.email}</td>
+                                        <td>${e.Phone_number}</td>
+                                        <td><button class="btn-delete" onclick="deleteEmployee(${e.Employee_ID})">Xóa</button></td>
+                                    </tr>
+                                `).join("")}
+                            </tbody>
+                        </table>
+                    `;
+        
+                    document.getElementById("employeeList").innerHTML = table;
+                });
+        }
+        
+    
+        function loadUsers() {
+            fetch("/users")
+                .then(res => res.json())
+                .then(data => {
+                    if (data.length === 0) {
+                        document.getElementById("userList").innerHTML = "Không có người dùng nào.";
+                        return;
+                    }
+        
+                    const table = `
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Họ tên</th>
+                                    <th>Email</th>
+                                    <th>SĐT</th>
+                                    <th>Hành động</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.map(u => `
+                                    <tr>
+                                        <td>${u.Full_Name}</td>
+                                        <td>${u.email}</td>
+                                        <td>${u.Phone_number}</td>
+                                        <td><button class="btn-delete" onclick="deleteUser(${u.User_ID})">Xóa</button></td>
+                                    </tr>
+                                `).join("")}
+                            </tbody>
+                        </table>
+                    `;
+        
+                    document.getElementById("userList").innerHTML = table;
+                });
+        }
+    
+            async function deleteEmployee(id) {
+                const confirm = await Swal.fire({
+                    title: 'Bạn có chắc?',
+                    text: "Nhân viên này sẽ bị xóa vĩnh viễn!",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonText: 'Vâng, xóa đi!',
+                    cancelButtonText: 'Hủy'
+                });
+        
+                if (confirm.isConfirmed) {
+                    try {
+                        const res = await fetch(`/delete-employee/${id}`, { method: "DELETE" });
+                        if (res.ok) {
+                            Swal.fire('✅ Đã xóa!', 'Nhân viên đã bị xóa.', 'success');
+                            loadEmployees();
+                        } else {
+                            Swal.fire('❌ Lỗi', 'Không thể xóa nhân viên.', 'error');
+                        }
+                    } catch (err) {
+                        Swal.fire('❌ Lỗi', 'Có lỗi xảy ra khi xóa.', 'error');
+                    }
+                }
+            }
+        
+            async function deleteUser(id) {
+                const confirm = await Swal.fire({
+                    title: 'Bạn có chắc?',
+                    text: "Người dùng này sẽ bị xóa vĩnh viễn!",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonText: 'Vâng, xóa đi!',
+                    cancelButtonText: 'Hủy'
+                });
+        
+                if (confirm.isConfirmed) {
+                    try {
+                        const res = await fetch(`/delete-user/${id}`, { method: "DELETE" });
+                        if (res.ok) {
+                            Swal.fire('✅ Đã xóa!', 'Người dùng đã bị xóa.', 'success');
+                            loadUsers();
+                        } else {
+                            Swal.fire('❌ Lỗi', 'Không thể xóa người dùng.', 'error');
+                        }
+                    } catch (err) {
+                        Swal.fire('❌ Lỗi', 'Có lỗi xảy ra khi xóa.', 'error');
+                    }
+                }
+            }
+        
+    </script>
+</body>
+</html>

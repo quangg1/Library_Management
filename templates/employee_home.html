@@ -6,7 +6,7 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            background: #111; /* nền tối hơn */
+            background: #111;
             padding: 20px;
             color: #f1f1f1;
         }
@@ -25,7 +25,6 @@
             margin-bottom: 20px;
             text-shadow: 0 0 5px rgba(255,255,255,0.2);
         }
-    
         table {
             width: 100%;
             border-collapse: collapse;
@@ -33,52 +32,47 @@
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
             color: #f8f8f8;
         }
-    
         th, td {
             padding: 12px;
             text-align: center;
             border-bottom: 1px solid #444;
         }
-    
         th {
             background-color: #343a40;
             color: #ffffff;
             text-transform: uppercase;
         }
-    
         tr:nth-child(even) {
             background-color: #2c2c3e;
         }
-    
         tr:hover {
             background-color: #3b3b4f;
         }
-    
         img.book-img {
             width: 60px;
             height: auto;
             border-radius: 4px;
             border: 1px solid #666;
         }
-    
         .edit-btn {
             background-color: #ffc107;
             color: black;
         }
-    
         .edit-btn:hover {
             background-color: #e0a800;
         }
-    
         .delete-btn {
             background-color: #dc3545;
             color: white;
         }
-    
         .delete-btn:hover {
             background-color: #c82333;
         }
-    
+        .disabled-btn {
+            opacity: 0.5;
+            pointer-events: none;
+            cursor: not-allowed;
+        }
         .pagination button {
             padding: 6px 12px;
             margin: 0 4px;
@@ -86,20 +80,22 @@
             background: #222;
             color: white;
         }
-    
         .pagination button.active {
             background-color: #007bff;
             border-color: #007bff;
         }
-    
         .pagination button:hover {
             background-color: #444;
         }
-    
         .navbar button {
             background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            margin-right: 8px;
+            cursor: pointer;
         }
-    
         .navbar button:hover {
             background-color: #0056b3;
         }
@@ -111,7 +107,6 @@
             gap: 10px;
             z-index: 2;
         }
-        
         .top-right button {
             padding: 6px 12px;
             background-color: #007bff;
@@ -120,7 +115,6 @@
             border-radius: 6px;
             cursor: pointer;
         }
-        
         .top-right button:hover {
             background-color: #0056b3;
         }
@@ -163,18 +157,44 @@
         let allBooks = [];
         let currentPage = 1;
         const booksPerPage = 5;
+        let userType = '';
 
         function logout() {
             window.location.href = "/";
         }
 
-        fetch("/books")
-            .then(response => response.json())
+        fetch("/user_type")
+            .then(res => res.json())
             .then(data => {
-                allBooks = data;
-                renderPagination();
-                renderTable();
+            userType = data.userType;
+            showRoleControls(userType);  
+            fetchBooks();
             });
+
+            function showRoleControls(role) {
+                const navbar = document.querySelector(".navbar");
+                const manageBtn = document.createElement("button");
+            
+                if (role === "admin") {
+                    manageBtn.textContent = "🛠️ Quản lý nhân viên";
+                } else if (role === "employee") {
+                    manageBtn.textContent = "👤 Quản lý người dùng";
+                } else {
+                    return; 
+                }
+            
+                manageBtn.onclick = () => window.location.href = "/management";
+                navbar.appendChild(manageBtn);
+            }
+        function fetchBooks() {
+            fetch("/books")
+                .then(response => response.json())
+                .then(data => {
+                    allBooks = data;
+                    renderPagination();
+                    renderTable();
+                });
+        }
 
         function renderPagination() {
             const pageCount = Math.ceil(allBooks.length / booksPerPage);
@@ -203,6 +223,14 @@
             const currentBooks = allBooks.slice(start, end);
             currentBooks.forEach((book, index) => {
                 const row = document.createElement("tr");
+
+                const deleteBtnHTML = `
+                    <button class="action-btn delete-btn ${userType === 'employee' ? 'disabled-btn' : ''}"
+                        ${userType === 'employee' ? 'disabled' : ''}
+                        onclick="${userType !== 'employee' ? `deleteBook(${book.book_id})` : ''}"
+                    >Xóa</button>
+                `;
+
                 row.innerHTML = `
                     <td>${start + index + 1}</td>
                     <td><img class="book-img" src="${book.image || 'placeholder.jpg'}" alt="${book.book}"></td>
@@ -212,7 +240,7 @@
                     <td>${book["book publisher"]}</td>
                     <td>
                         <button class="action-btn edit-btn" onclick="editBook(${book.book_id})">Sửa</button>
-                        <button class="action-btn delete-btn" onclick="deleteBook(${book.book_id})">Xóa</button>
+                        ${deleteBtnHTML}
                     </td>
                 `;
                 tableBody.appendChild(row);
@@ -238,6 +266,5 @@
             }
         }
     </script>
-
 </body>
 </html>

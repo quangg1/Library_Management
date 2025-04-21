@@ -11,6 +11,8 @@ const bcrypt = require("bcryptjs");
 const { getAuthorByBook } = require(__dirname + "/db_query/author.js");
 const { getBookSeriesByAuthor } = require(__dirname + "/db_query/book_series.js");
 const session = require('express-session');
+const multer = require('multer');
+const upload = multer();
 // Middleware
 app.use(session({
     secret: 'mysecretkey',
@@ -202,7 +204,7 @@ app.get("/book-series-detail/:id",checkAuth, async(req, res) => {
 app.get("/book_series.html",checkAuth, (req, res) => {
     res.sendFile(path.join(__dirname, "templates", "book_series.html"));
 });
-// Phần login user
+// Phần login user, va phan biet userType
 app.post('/login',(req, res) => {
     const { email, password } = req.body;
 
@@ -253,19 +255,20 @@ app.post('/login',(req, res) => {
                 req.session.role = user.role;
                 req.session.email = user.email;
                 // Xác định nếu là Sinh viên hay Giáo viên
-                let userType = 'user'; // Mặc định là user
-                if (user.Sinh_vien === 1) {
-                    userType = 'sinhvien';
-                } else if (user.Giao_vien === 1) {
-                    userType = 'giaovien';
-                } else {
-                    // Chỉ có trong bảng employee
-                    if (user.role === 'admin') {
-                        userType = 'admin';
-                    } else if (user.role === 'employee') {
-                        userType = 'employee';
-                    }
-                }
+                let userType;
+
+if (user.role === 'Admin') {
+    userType = 'admin';
+} else if (user.role === 'Employee') {
+    userType = 'employee';
+} else if (user.Sinh_vien === 1) {
+    userType = 'sinhvien';
+} else if (user.Giao_vien === 1) {
+    userType = 'giaovien';
+} else {
+    userType = 'user'; // fallback nếu không khớp cái nào
+}
+                req.session.userType = userType;
                 req.session.save(err => {
                     if (err) {
                       console.error('Lỗi lưu session:', err);
@@ -285,8 +288,13 @@ app.post('/login',(req, res) => {
         });
     });
 });
-
-
+app.get('/user_type', (req, res) => {
+    const userType = req.session.userType; 
+    const userId=req.session.user_id ;
+    const role=req.session.role;
+    res.json({ userType, userId,role });
+});
+// Kiem tra tinh dach cua email va phone
 app.post('/check-unique', (req, res) => {
     const { email, phone } = req.body;
 
@@ -414,7 +422,7 @@ app.get("/current-user", checkAuth, async (req, res) => {
             return res.json(empResults[0]);  // Trả về dữ liệu từ bảng employee nếu có
         } else {
             // Nếu không có trong employee thì lấy từ user
-            const userQuery = "SELECT Full_Name, email, Phone_number, role FROM user WHERE User_ID = ?";
+            const userQuery = "SELECT Full_Name, email, Phone_number, role,User_ID FROM user WHERE User_ID = ?";
             const [userResults] = await db.query(userQuery, [userId]);
 
             if (userResults.length > 0) {
@@ -513,8 +521,42 @@ app.get('/change_password.html',checkAuth, (req, res) => {
     res.sendFile(__dirname + "/templates/change_password.html");
   });
 // Mượn sách
+app.get('/borrowed-books', async (req, res) => {
+    const userId = req.session.user_id; // Lấy user_id từ query string
+  
+    if (!userId) {
+      return res.status(400).json({ error: "Thiếu user_id" });
+    }
+  
+    const query = `
+      SELECT 
+        b.Borrow_ID,
+        s.book AS book,
+        s.author AS author,
+        b.Borrow_Date,
+        b.Return_Date,
+        b.Status,
+        b.Actual_Return_Date
+      FROM borrow b
+      JOIN all_book s ON b.Book_ID = s.book_id
+      WHERE b.User_ID = ? 
+        AND b.Status IN ('Đang mượn', 'Trễ hạn', 'Đã trả')
+      ORDER BY b.Borrow_Date DESC
+    `;
+  
+    try {
+      const [results] = await db.query(query, [userId]); // Dùng placeholder ? để tránh SQL injection
+      res.json([results]); // data[0] như frontend mong đợi
+    } catch (err) {
+      console.error("Lỗi truy vấn MySQL:", err);
+      res.status(500).json({ error: 'Lỗi máy chủ' });
+    }
+  });
+  
+  
 app.post("/borrow", async (req, res) => {
     const userId = req.session.user_id;
+    const  userType=req.session.userType;
     const { bookId } = req.body;
 
     if (!userId) {
@@ -526,8 +568,13 @@ app.post("/borrow", async (req, res) => {
     }
 
     const borrowDate = new Date();
-    const returnDate = new Date(); // giả sử trả sau 14 ngày
+    const returnDate = new Date();
+    if (userType === "sinhvien") {
     returnDate.setDate(returnDate.getDate() + 14);
+    }
+    else if (userType === "giaovien") {
+        returnDate.setDate(returnDate.getDate() + 30);
+    }
 
     const query = `
         INSERT INTO borrow (User_ID, Book_ID, Borrow_Date, Return_Date, Status)
@@ -544,93 +591,114 @@ app.post("/borrow", async (req, res) => {
 });
 
 // Lấy danh sách sách đã mượn
-app.get('/borrowed-books', async (req, res) => {
-    const userId = req.session.user_id;
-    if (!userId) return res.status(401).json({ message: "Chưa đăng nhập" });
-
-    const query = `
-      SELECT 
-      b.Borrow_ID, b.Borrow_Date, b.Return_Date, b.Status,
-      ab.book, ab.author
-      FROM borrow b
-      JOIN all_book ab ON b.Book_ID = ab.book_id
-      WHERE b.User_ID = ?
-    `;
-  
-    try {
-        const results = await db.query(query, [userId]);
-        res.json(results);
-    } catch (err) {
-        return res.status(500).json({ message: "Lỗi server", error: err });
-    }
-});
-// Tra sach
-app.delete("/return-book/:id", async (req, res) => {
-    const borrowId = req.params.id;
-    const sql = `
-      UPDATE borrow
-      SET Status = 'Đã trả', Actual_Return_Date = CURDATE()
-      WHERE Borrow_ID = ?
-    `;
-
-    try {
-        await db.query(sql, [borrowId]);
-        res.json({ message: "Trả sách thành công!" });
-    } catch (err) {
-        console.error("Lỗi khi trả sách:", err);
-        return res.status(500).json({ error: "Lỗi server khi trả sách" });
-    }
-});
-
-// Thêm sách
-app.post('/add-book', async (req, res) => {
+app.post('/add-book', upload.none(), async (req, res) => {
     const {
       book, author, book_subject, book_publisher_name,
       image, pub_date, earliest_pub_date, language, isbn
     } = req.body;
 
-    if (!author || !book_subject || !book_publisher_name) {
-      return res.status(400).send('Thiếu thông tin tác giả, chủ đề hoặc nhà xuất bản');
+    console.log(req.body);
+
+    // Kiểm tra tất cả các trường quan trọng
+    if (!author?.trim() || !book_subject?.trim() || !book_publisher_name?.trim() || !book?.trim()) {
+      return res.status(400).send('Thiếu thông tin tên sách, tác giả, chủ đề hoặc nhà xuất bản');
     }
 
     const trimLower = str => str ? str.trim().toLowerCase() : '';
 
-    const insertOrGetId = async (table, column, value) => {
-      const querySelect = `SELECT ${table}_id AS id FROM ${table} WHERE ${column} = ?`;
-      const results = await db.query(querySelect, [value]);
+    // Hàm insert hoặc lấy ID thủ công
+    async function insertOrGetId(table, column, value) {
+      const columns = {
+        'all_authors': 'Author_ID',
+        'all_book_subjects': 'subject_id',
+        'all_book_publishers': 'publisher_id'
+      };
 
-      if (results.length > 0) {
-        return results[0].id;
+      const idColumn = columns[table];
+
+      if (!idColumn) {
+        throw new Error(`Không xác định được cột ID cho bảng ${table}`);
       }
 
-      const queryInsert = `INSERT INTO ${table} (${column}) VALUES (?)`;
-      const result = await db.query(queryInsert, [value]);
+      // Sử dụng backticks cho các cột có khoảng trắng
+      const selectQuery = `SELECT ${idColumn} AS id FROM ${table} WHERE \`${column}\` = ?`;
+      const [rows] = await db.query(selectQuery, [value]);
+
+      if (rows.length > 0) {
+        return rows[0].id;
+      }
+
+      const insertQuery = `INSERT INTO ${table} (\`${column}\`) VALUES (?)`;
+      const [result] = await db.query(insertQuery, [value]);
+
       return result.insertId;
-    };
+    }
 
     try {
+      // Lấy hoặc insert ID cho các bảng liên quan
       const author_id = await insertOrGetId('all_authors', 'author', trimLower(author));
-      const subject_id = await insertOrGetId('all_book_subjects', 'book_subject', trimLower(book_subject));
+      const subject_id = await insertOrGetId('all_book_subjects', 'book subject', trimLower(book_subject));
       const publisher_id = await insertOrGetId('all_book_publishers', 'book_publisher', trimLower(book_publisher_name));
 
+      // Đảm bảo số lượng cột và giá trị trong câu lệnh INSERT INTO khớp
       const insertBookQuery = `
         INSERT INTO all_book (
           book, author_id, subject_id, image, \`publication date\`,
-          \`earliest publication date\`, language, isbn, publisher_id
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          \`earliest publication date\`, language, isbn, publisher_id, author, \`book subject\`, \`book publisher\`
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
 
+      // Các giá trị cần insert
       await db.query(insertBookQuery, [
         book, author_id, subject_id, image,
-        pub_date, earliest_pub_date, language, isbn, publisher_id
+        pub_date, earliest_pub_date, language, isbn, publisher_id,
+        author, book_subject, book_publisher_name
       ]);
 
-      res.redirect('/add-book.html');
+      res.redirect('/employee_home.html');
     } catch (err) {
-      console.error('Lỗi thêm sách:', err);
-      return res.status(500).send('Thêm sách thất bại');
+      console.error('Lỗi thêm sách:', err.message || err);
+      return res.status(500).send('Thêm sách thất bại. Vui lòng kiểm tra lại.');
     }
 });
+// Trả sách
+app.patch('/update-return-date/:borrowId', async (req, res) => {
+    const borrowId = req.params.borrowId;
+    const { Actual_Return_Date } = req.body;
+  
+    try {
+      // Kiểm tra sách có tồn tại không
+      const [rows] = await db.query(
+        'SELECT * FROM borrow WHERE Borrow_ID = ?',
+        [borrowId]
+      );
+  
+      if (rows.length === 0) {
+        return res.status(404).json({ message: 'Sách không tồn tại' });
+      }
+  
+      // Chuyển đổi "4/19/2025" → Date object
+      const [month, day, year] = Actual_Return_Date.split('/');
+      const dateObj = new Date(year, month - 1, day);
+  
+      // Định dạng thành YYYY-MM-DD theo giờ địa phương
+      const formattedDate = dateObj.toLocaleDateString('en-CA'); 
+  
+      // Cập nhật vào CSDL
+      await db.query(
+        'UPDATE borrow SET Actual_Return_Date = ?, Status = "Đã trả" WHERE Borrow_ID = ?',
+        [formattedDate, borrowId]
+      );
+  
+      res.json({ message: 'Cập nhật ngày trả sách thành công' });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: 'Lỗi khi cập nhật ngày trả sách' });
+    }
+  });
+
+
+  
 
 
   
@@ -657,7 +725,7 @@ app.delete('/delete-book/:id', async (req, res) => {
     const bookId = req.params.id;
 
     try {
-        await db.query('DELETE FROM books WHERE book_id = ?', [bookId]);
+        await db.query('DELETE FROM all_book WHERE book_id = ?', [bookId]);
         res.json({ success: true });
     } catch (err) {
         return res.status(500).json({ error: err.message });
@@ -672,6 +740,53 @@ app.get('/employee_home.html',checkAuth,(req, res) => {
 
 app.get('/edit-book.html',checkAuth, (req, res) => {
     res.sendFile(path.join(__dirname, 'templates', 'edit-book.html'));
+});
+
+// Quản lí nhân viên và người dùng
+app.get('/management', checkAuth, (req, res) => {
+    res.sendFile(path.join(__dirname, 'templates', 'management.html'));
+});
+app.get("/users", async (req, res) => {
+    try {
+        const result = await db.query("SELECT User_ID,Full_Name, email, Phone_number FROM user");
+        res.json(result.rows || result[0]); // tùy DB driver là pg hay mysql
+    } catch (err) {
+        console.error("Lỗi khi lấy users:", err);
+        res.status(500).json({ error: "Lỗi server khi lấy danh sách người dùng" });
+    }
+});
+app.get("/employees", async (req, res) => {
+    try {
+        const result = await db.query("SELECT EmployeeID,Full_Name, email, Phone_number FROM employee");
+        res.json(result.rows || result[0]);
+    } catch (err) {
+        console.error("Lỗi khi lấy employees:", err);
+        res.status(500).json({ error: "Lỗi server khi lấy danh sách nhân viên" });
+    }
+});
+// Xóa nhân viên và người dùng
+//// Xóa user////
+app.delete("/delete-user/:id", async (req, res) => {
+    const { id } = req.params;
+    try {
+        await db.query("DELETE FROM user WHERE User_ID = ?", [id]);
+        res.sendStatus(200);
+    } catch (err) {
+        console.error("Lỗi xóa user:", err);
+        res.status(500).json({ error: "Lỗi khi xóa người dùng" });
+    }
+});
+
+//// Xóa employee////
+app.delete("/delete-employee/:id", async (req, res) => {
+    const { id } = req.params;
+    try {
+        await db.query("DELETE FROM employee WHERE EmployeeID = ?", [id]);
+        res.sendStatus(200);
+    } catch (err) {
+        console.error("Lỗi xóa employee:", err);
+        res.status(500).json({ error: "Lỗi khi xóa nhân viên" });
+    }
 });
 // Chạy server
 app.listen(3000, () => {

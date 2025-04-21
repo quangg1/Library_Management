@@ -118,6 +118,7 @@
             background-color: #0056b3;
         }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/fuse.js"></script>
 </head>
 <body>
 
@@ -129,7 +130,8 @@
         <source src="73478-548608753_medium.mp4" type="video/mp4">
     </video>
     <div class="search-container">
-        <input type="text" id="searchInput" placeholder="Tìm kiếm sách...">
+        <input type="text" id="searchInput" list="suggestions" placeholder="Tìm kiếm sách...">
+        <datalist id="suggestions"></datalist>
     </div>
     <div class="book-container" id="bookContainer"></div>
     <div class="pagination" id="pagination">
@@ -144,13 +146,70 @@
         const booksPerPage = 6;
         let currentPage = 1;
 
-        fetch("/books")
-            .then(response => response.json())
-            .then(data => {
-                books = data;
-                filteredBooks = books;
-                renderBooks();
+        let suggestionsList = [];
+    let suggestionsFuse;
+
+    fetch("/books")
+    .then(response => response.json())
+    .then(data => {
+        books = data;
+        filteredBooks = books;
+
+        // Tạo tập hợp gợi ý từ 4 trường
+        const set = new Set();
+        data.forEach(book => {
+            if (book.book) set.add(book.book);
+            if (book.author) set.add(book.author);
+            if (book["book publisher"]) set.add(book["book publisher"]);
+            if (book["book subject"]) set.add(book["book subject"]);
+        });
+
+        suggestionsList = Array.from(set);
+
+        // Fuse chỉ dùng cho autocomplete gợi ý
+        suggestionsFuse = new Fuse(suggestionsList, {
+            threshold: 0.3,
+        });
+
+        // Fuse riêng cho lọc sách
+        fuse = new Fuse(books, {
+            keys: ['book', 'author', 'book subject', 'book publisher'],
+            threshold: 0.4,
+        });
+
+        renderBooks();
+    });
+
+    function searchBooks() {
+        const input = document.getElementById("searchInput");
+        const query = input.value.trim();
+
+        const datalist = document.getElementById("suggestions");
+        datalist.innerHTML = "";
+
+        // Gợi ý autocomplete từ suggestionsList
+        if (query) {
+            const suggestResults = suggestionsFuse.search(query).slice(0, 8); // giới hạn 8 gợi ý
+            suggestResults.forEach(result => {
+                const option = document.createElement("option");
+                option.value = result.item;
+                datalist.appendChild(option);
             });
+        }
+
+        // Lọc sách
+        if (query === "") {
+            filteredBooks = books;
+        } else {
+            const results = fuse.search(query).map(r => r.item);
+            filteredBooks = results;
+        }
+
+        currentPage = 1;
+        renderBooks();
+    }
+
+    document.getElementById("searchInput").addEventListener("input", searchBooks);
 
         function renderBooks() {
             const bookContainer = document.getElementById("bookContainer");
@@ -222,22 +281,27 @@
                 renderBooks();
             }
         });
-
-        function searchBooks() {
-            const searchInput = document.getElementById("searchInput").value.toLowerCase().trim();
-            currentPage = 1;
-            filteredBooks = searchInput === "" ? books : books.filter(book =>
-                book.book.toLowerCase().includes(searchInput) || 
-                book.author.toLowerCase().includes(searchInput) || 
-                book["book subject"].toLowerCase().includes(searchInput)
-            );
-            renderBooks();
-        }
         function logout() {
             // Xóa session hoặc cookie (tuỳ vào cách bạn quản lý đăng nhập)
             window.location.href = '/'; // Chuyển hướng về trang đăng nhập
         }
         document.getElementById("searchInput").addEventListener("input", searchBooks);
+        fetch('/user_type')
+        .then(res => res.json())
+        .then(data => {
+            const greeting = document.createElement('h2');
+            greeting.style.margin = '20px';
+            greeting.style.color = '#333';
+
+            if (data.userType === 'giaovien') {
+                greeting.textContent = 'Xin chào giáo viên '+ data.userId;
+                greeting.style.color = '#ffffff';
+            } else if (data.userType === 'sinhvien') {
+                greeting.textContent = 'Xin chào sinh viên '+ data.userId;
+                greeting.style.color = '#ffffff';
+            };  
+            document.body.insertBefore(greeting, document.querySelector('.search-container'));
+        });
     </script>
 </body>
 </html>
