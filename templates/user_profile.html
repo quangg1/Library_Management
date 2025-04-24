@@ -132,15 +132,16 @@
 
     // Lấy thông tin người dùng hiện tại
     fetch("/current-user")
-      .then(res => res.json())
-      .then(user => {
-        userId = user.id; // nếu backend trả về id
-        userRole = user.role; 
-        document.getElementById("fullName").value = user.Full_Name || "";
-        document.getElementById("email").value = user.email || "";
-        document.getElementById("phone").value = user.Phone_number || "";
-        document.getElementById("id").value = user.User_ID || "";
-      });
+    .then(res => res.json())
+    .then(data => {
+      const user = data[0];  // Lấy phần tử đầu tiên của mảng
+      userId = user.User_ID;
+      userRole = user.role; 
+      document.getElementById("fullName").value = user.Full_Name || "";
+      document.getElementById("email").value = user.email || "";
+      document.getElementById("phone").value = user.Phone_number || "";
+      document.getElementById("id").value = user.User_ID || "";
+    });
       function loadBorrowedBooks() {
         fetch("/borrowed-books")
             .then(res => res.json())

@@ -9,33 +9,30 @@ const pool = mysql.createConnection({
 });
 
 function getBookSeriesByAuthor(bookSeriesId, callback) {
-    const query = `
-        SELECT a.\`book series\`
-        FROM all_book_series a
-        LEFT JOIN all_authors b ON a.book_series_id = b.\`books in series\`
-        WHERE b.\`books in series\` = ?
-        LIMIT 1;
-    `;
+    const query = `CALL GetBookSeriesByAuthor(?)`;
 
     console.log("📌 Query SQL chạy với bookSeriesId:", bookSeriesId);
 
-    // Sửa connection.query() thành pool.query()
     pool.query(query, [bookSeriesId], (err, results) => {
         if (err) {
             console.error("❌ Lỗi SQL:", err);
             return callback(err, null);
         }
 
-        console.log("✅ Kết quả SQL:", results);
+        // ✅ Kết quả truy vấn nằm trong results[0]
+        const data = results[0];
 
-        if (results.length > 0) {
-            console.log("✅ book_series lấy được:", results[0]["book series"]);
-            callback(null, results[0]["book series"]);
+        console.log("✅ Kết quả SQL:", data);
+
+        if (data.length > 0) {
+            console.log("✅ book_series lấy được:", data[0]["book series"]);
+            callback(null, data[0]["book series"]);
         } else {
             console.log("⚠️ Không có dữ liệu phù hợp");
             callback(null, "Không có thông tin");
         }
     });
 }
+
 
 module.exports = { getBookSeriesByAuthor };
