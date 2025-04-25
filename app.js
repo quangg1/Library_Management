@@ -565,27 +565,30 @@ app.get('/borrowed-books', async (req, res) => {
 });
 
 // Lấy danh sách sách đã mượn
-app.post('/add-book', upload.none(), async (req, res) => {
+app.post('/add-book', async (req, res) => {
     const {
-        book, author, book_subject, book_publisher_name,
-        image, pub_date, earliest_pub_date, language, isbn
+      book, author, book_subject, book_publisher_name,
+      image, pub_date, earliest_pub_date, language, isbn
     } = req.body;
-
-    if (!author?.trim() || !book_subject?.trim() || !book_publisher_name?.trim() || !book?.trim()) {
-        return res.status(400).send('Thiếu thông tin tên sách, tác giả, chủ đề hoặc nhà xuất bản');
-    }
-
+  
     try {
-        await db.query("CALL add_book(?, ?, ?, ?, ?, ?, ?, ?, ?)", [
-            book, author, book_subject, book_publisher_name,
-            image, pub_date, earliest_pub_date, language, isbn
-        ]);
-        res.redirect('/employee_home.html');
+      await db.query('CALL add_book(?, ?, ?, ?, ?, ?, ?, ?, ?)', [
+        book,
+        author,
+        book_subject,
+        book_publisher_name,
+        image,
+        pub_date,
+        earliest_pub_date,
+        language,
+        isbn
+      ]);
+      res.json({ message: 'Thêm sách thành công' });
     } catch (err) {
-        console.error('Lỗi thêm sách:', err.message || err);
-        return res.status(500).send('Thêm sách thất bại. Vui lòng kiểm tra lại.');
+      console.error(err);
+      res.status(500).json({ message: 'Thêm sách thất bại hoặc dữ liệu không hợp lệ' });
     }
-});
+  });
 // Trả sách
 app.patch('/update-return-date/:borrowId', async (req, res) => {
     const borrowId = req.params.borrowId;

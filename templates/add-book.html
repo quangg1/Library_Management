@@ -9,13 +9,11 @@
       padding: 40px;
       background: linear-gradient(to right, #f8f9fa, #e9ecef);
     }
-  
     h1 {
       text-align: center;
       color: #f1f1f1;
       margin-bottom: 30px;
     }
-  
     form {
       max-width: 600px;
       margin: 0 auto;
@@ -24,16 +22,13 @@
       border-radius: 15px;
       box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
     }
-  
     label {
       display: block;
       margin-top: 15px;
       font-weight: 600;
       color: #495057;
     }
-  
-    input,
-    textarea {
+    input, textarea {
       width: 100%;
       padding: 12px;
       margin-top: 5px;
@@ -42,14 +37,11 @@
       transition: border 0.3s, box-shadow 0.3s;
       font-size: 15px;
     }
-  
-    input:focus,
-    textarea:focus {
+    input:focus, textarea:focus {
       border-color: #80bdff;
       box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
       outline: none;
     }
-  
     button {
       margin-top: 25px;
       padding: 12px 20px;
@@ -62,59 +54,52 @@
       cursor: pointer;
       transition: background 0.3s, transform 0.2s;
     }
-  
     button:hover {
       background: #218838;
       transform: scale(1.03);
     }
-  
     .back-btn {
       background: #6c757d;
       margin-left: 10px;
     }
-  
     .back-btn:hover {
       background: #5a6268;
     }
     #bgVideo {
       position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
       object-fit: cover;
       z-index: -1;
-  }
-  #author_suggestions button,
-#subject_suggestions button,
-#publisher_suggestions button {
-  display: block;
-  margin-top: 10px;
-  padding: 10px;
-  width: 100%;
-  background-color: #28a745;
-  color: white; /* CHỮ TRẮNG CHO DỄ NHÌN */
-  border: none;
-  border-radius: 8px;
-  font-size: 16px;
-  text-align: left;
-  cursor: pointer;
-  font-weight: 500;
-}
-
-#author_suggestions button:hover,
-#subject_suggestions button:hover,
-#publisher_suggestions button:hover {
-  background-color: #218838;
-}
+    }
+    #author_suggestions button,
+    #subject_suggestions button,
+    #publisher_suggestions button {
+      display: block;
+      margin-top: 10px;
+      padding: 10px;
+      width: 100%;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      text-align: left;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    #author_suggestions button:hover,
+    #subject_suggestions button:hover,
+    #publisher_suggestions button:hover {
+      background-color: #218838;
+    }
   </style>
-  
 </head>
 <body>
   <video id="bgVideo" autoplay loop muted>
     <source src="73478-548608753_medium.mp4" type="video/mp4">
-    Your browser does not support the video tag.
-</video>
+  </video>
+
   <h1>Thêm sách mới</h1>
   <form id="bookForm">
     <input type="hidden" name="book_id" id="book_id">
@@ -122,27 +107,35 @@
     <label>Tên sách</label>
     <input type="text" name="book" id="book" required>
 
+    <!-- Tác giả -->
     <label>Tác giả</label>
     <input type="text" name="author" id="author" required>
-    <button type="button" onclick="checkAuthor()">Kiểm tra</button>
-    <button type="button" onclick="resetAuthor()">Reset</button>
+    <div>
+      <button type="button" onclick="checkData('author')">Kiểm tra</button>
+      <button type="button" onclick="resetField('author')">Reset</button>
+    </div>
     <input type="hidden" name="author_id" id="author_id">
     <div id="author_suggestions"></div>
 
+    <!-- Chủ đề -->
     <label>Chủ đề</label>
     <input type="text" name="book_subject" id="book_subject" required>
-    <button type="button" onclick="checkSubject()">Kiểm tra</button>
-    <button type="button" onclick="resetSubject()">Reset</button>
+    <div>
+      <button type="button" onclick="checkData('subject')">Kiểm tra</button>
+      <button type="button" onclick="resetField('subject')">Reset</button>
+    </div>
     <input type="hidden" name="subject_id" id="subject_id">
     <div id="subject_suggestions"></div>
 
-
+    <!-- Nhà xuất bản -->
     <label>Nhà xuất bản</label>
-<input type="text" name="book_publisher_name" id="book_publisher_name">
-<button type="button" onclick="checkPublisher()">Kiểm tra</button>
-<button type="button" onclick="resetPublisher()">Reset</button>
-<input type="hidden" name="publisher_id" id="publisher_id">
-<div id="publisher_suggestions"></div>
+    <input type="text" name="book_publisher_name" id="book_publisher_name">
+    <div>
+      <button type="button" onclick="checkData('publisher')">Kiểm tra</button>
+      <button type="button" onclick="resetField('publisher')">Reset</button>
+    </div>
+    <input type="hidden" name="publisher_id" id="publisher_id">
+    <div id="publisher_suggestions"></div>
 
     <label>Link ảnh (URL)</label>
     <input type="text" name="image" id="image">
@@ -163,130 +156,64 @@
     <button type="submit">Thêm sách</button>
     <button class="back-btn" type="button" onclick="window.location.href='/employee_home.html'">Quay lại</button>
   </form>
+
   <script>
+    const map = {
+      author: { url: '/check-author', nameField: 'author', idField: 'author_id', label: 'author', redirect: '/add-author' },
+      subject: { url: '/check-subject', nameField: 'book_subject', idField: 'subject_id', label: 'book subject', redirect: '/add-subject' },
+      publisher: { url: '/check-publisher', nameField: 'book_publisher_name', idField: 'publisher_id', label: 'book_publisher', redirect: '/add-publisher' }
+    };
+
+    async function checkData(type) {
+      const config = map[type];
+      const name = document.getElementById(config.nameField).value;
+      const res = await fetch(`${config.url}?name=${encodeURIComponent(name)}`);
+      const data = await res.json();
+
+      const box = document.getElementById(`${type}_suggestions`);
+      box.innerHTML = '';
+
+      if (data.length > 0) {
+        data.forEach(item => {
+          const btn = document.createElement('button');
+          btn.textContent = item[config.label];
+          btn.onclick = () => {
+            document.getElementById(config.idField).value = item.id || item.Author_ID || item.subject_id;
+            document.getElementById(config.nameField).value = item[config.label];
+            box.innerHTML = '';
+          };
+          box.appendChild(btn);
+        });
+      } else {
+        const btn = document.createElement('button');
+        btn.textContent = `Thêm mới ${type}`;
+        btn.onclick = () => window.location.href = `${config.redirect}?name=${encodeURIComponent(name)}`;
+        box.appendChild(btn);
+      }
+    }
+
+    function resetField(type) {
+      const config = map[type];
+      document.getElementById(config.nameField).value = '';
+      document.getElementById(config.idField).value = '';
+      document.getElementById(`${type}_suggestions`).innerHTML = '';
+    }
+
     document.getElementById('image').addEventListener('input', function () {
       const img = document.getElementById('preview-image');
       const url = this.value.trim();
-      if (url) {
-        img.src = url;
-        img.style.display = 'block';
-        img.style.maxWidth = '100%';
-        img.style.marginTop = '10px';
-        img.style.borderRadius = '10px';
-      } else {
-        img.style.display = 'none';
-      }
+      img.src = url || '';
+      img.style.display = url ? 'block' : 'none';
     });
-    // Nhà xuất bản
-    async function checkPublisher() {
-      const name = document.getElementById('book_publisher_name').value;
-      const res = await fetch(`/check-publisher?name=${encodeURIComponent(name)}`);
-      const data = await res.json();
-    
-      const suggestionBox = document.getElementById('publisher_suggestions');
-      suggestionBox.innerHTML = '';
-    
-      if (data.length > 0) {
-        data.forEach(p => {
-          const btn = document.createElement('button');
-          btn.textContent = p.book_publisher;
-          btn.onclick = () => {
-            document.getElementById('publisher_id').value = p.id;
-            document.getElementById('book_publisher_name').value = p.book_publisher;
-            suggestionBox.innerHTML = '';
-          };
-          suggestionBox.appendChild(btn);
-        });
-      } else {
-        const btn = document.createElement('button');
-        btn.textContent = 'Thêm mới nhà xuất bản';
-        btn.onclick = () => window.location.href = `/add-publisher?name=${encodeURIComponent(name)}`;
-        suggestionBox.appendChild(btn);
-      }
-    }
-    function resetPublisher() {
-      document.getElementById('book_publisher_name').value = '';
-      document.getElementById('publisher_id').value = '';
-      document.getElementById('publisher_suggestions').innerHTML = '';
-    }
-    // Chủ đề
-    async function checkSubject() {
-      const name = document.getElementById('book_subject').value;
-      const res = await fetch(`/check-subject?name=${encodeURIComponent(name)}`);
-      const data = await res.json();
-      const suggestionBox = document.getElementById('subject_suggestions');
-      suggestionBox.innerHTML = '';
-    
-      if (data.length > 0) {
-        data.forEach(p => {
-          const btn = document.createElement('button');
-          btn.textContent = p['book subject'];
-          btn.onclick = () => {
-            document.getElementById('subject_id').value = p.subject_id;
-            document.getElementById('book_subject').value = p['book subject'];
-            suggestionBox.innerHTML = '';
-          };
-          suggestionBox.appendChild(btn);
-        });
-      } else {
-        const btn = document.createElement('button');
-        btn.textContent = 'Thêm mới chủ đề';
-        btn.onclick = () => window.location.href = `/add-subject?name=${encodeURIComponent(name)}`;
-        suggestionBox.appendChild(btn);
-      }
-    }
-    function resetSubject() {
-      document.getElementById('book_subject').value = '';
-      document.getElementById('subject_id').value = '';
-      document.getElementById('subject_suggestions').innerHTML = '';
-    }
-    // Tác giả
-    async function checkAuthor() {
-      const name = document.getElementById('author').value;
-      const res = await fetch(`/check-author?name=${encodeURIComponent(name)}`);
-      const data = await res.json();
-      const suggestionBox = document.getElementById('author_suggestions');
-      suggestionBox.innerHTML = '';
-      if (data.length > 0) {
-        data.forEach(p => {
-          const btn = document.createElement('button');
-          btn.textContent = p.author;
-          btn.onclick = () => {
-            document.getElementById('author_id').value = p.Author_ID;
-            document.getElementById('author').value = p.author;
-            suggestionBox.innerHTML = '';
-          };
-          suggestionBox.appendChild(btn);
-        });
-      } else {
-        const btn = document.createElement('button');
-        btn.textContent = 'Thêm mới tác giả';
-        btn.onclick = () => window.location.href = `/add-author?name=${encodeURIComponent(name)}`;
-        suggestionBox.appendChild(btn);
-      }
-    }
-    function resetAuthor() {
-      document.getElementById('author').value = '';
-      document.getElementById('author_id').value = '';
-      document.getElementById('author_suggestions').innerHTML = '';
-    }
-    // Thêm sách
+
     document.getElementById('bookForm').addEventListener('submit', async function (e) {
-      e.preventDefault(); // Ngăn trình duyệt submit mặc định
-  
-      const form = e.target;
-      const formData = new FormData(form);
-  
-      const response = await fetch('/add-book', {
-        method: 'POST',
-        body: formData,
-      });
-  
-      const result = await response.json(); // hoặc response.text() tùy backend
-  
-      if (response.ok) {
+      e.preventDefault();
+      const formData = new FormData(this);
+      const res = await fetch('/add-book', { method: 'POST', body: formData });
+      const result = await res.json();
+      if (res.ok) {
         alert('Thêm sách thành công!');
-        form.reset(); // reset form
+        this.reset();
         document.getElementById('preview-image').style.display = 'none';
       } else {
         alert('Đã xảy ra lỗi: ' + (result.message || 'Không xác định'));
