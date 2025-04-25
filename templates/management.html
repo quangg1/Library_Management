@@ -157,7 +157,10 @@
             fetch("/employees")
                 .then(res => res.json())
                 .then(data => {
-                    if (data.length === 0) {
+                    // Lấy mảng nhân viên từ phản hồi (mảng đầu tiên)
+                    const employees = data[0];
+                    
+                    if (employees.length === 0) {
                         document.getElementById("employeeList").innerHTML = "Không có nhân viên nào.";
                         return;
                     }
@@ -173,7 +176,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                ${data.map(e => `
+                                ${employees.map(e => `
                                     <tr>
                                         <td>${e.Full_Name}</td>
                                         <td>${e.email}</td>
@@ -186,6 +189,10 @@
                     `;
         
                     document.getElementById("employeeList").innerHTML = table;
+                })
+                .catch(error => {
+                    console.error('Lỗi khi lấy danh sách nhân viên:', error);
+                    document.getElementById("employeeList").innerHTML = "Có lỗi xảy ra khi tải danh sách nhân viên.";
                 });
         }
         
@@ -194,7 +201,10 @@
             fetch("/users")
                 .then(res => res.json())
                 .then(data => {
-                    if (data.length === 0) {
+                    // Lấy mảng người dùng từ phản hồi (mảng đầu tiên)
+                    const users = data[0];
+                    
+                    if (users.length === 0) {
                         document.getElementById("userList").innerHTML = "Không có người dùng nào.";
                         return;
                     }
@@ -210,7 +220,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                ${data.map(u => `
+                                ${users.map(u => `
                                     <tr>
                                         <td>${u.Full_Name}</td>
                                         <td>${u.email}</td>
@@ -223,6 +233,10 @@
                     `;
         
                     document.getElementById("userList").innerHTML = table;
+                })
+                .catch(error => {
+                    console.error('Lỗi khi lấy danh sách người dùng:', error);
+                    document.getElementById("userList").innerHTML = "Có lỗi xảy ra khi tải danh sách người dùng.";
                 });
         }
     
