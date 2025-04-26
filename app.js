@@ -566,7 +566,7 @@ app.get('/borrowed-books',checkAuth, async (req, res) => {
 });
 
 // Lấy danh sách sách đã mượn
-app.post('/add-book', async (req, res) => {
+app.post('/add-book',upload.none(), async (req, res) => {
     const {
       book, author, book_subject, book_publisher_name,
       image, pub_date, earliest_pub_date, language, isbn
