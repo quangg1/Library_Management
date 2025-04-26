@@ -117,13 +117,12 @@
       <button class="btn" onclick="updateUser()">Lưu thay đổi</button>
     </div>
     <h2 style="margin-top: 40px;">Sách đã mượn</h2>
-<div id="borrowedBooks">
-  <p>Đang tải danh sách...</p>
-</div>
+    <div id="borrowedBooks">
+      <p>Đang tải danh sách...</p>
+    </div>
 
     <div class="back-btn">
       <button class="btn" onclick="goBack()">Quay về trang chính</button>
-
     </div>
   </div>
 
@@ -134,110 +133,155 @@
     fetch("/current-user")
     .then(res => res.json())
     .then(data => {
-      const user = data[0];  // Lấy phần tử đầu tiên của mảng
+      const user = data[0];
       userId = user.User_ID;
-      userRole = user.role; 
+      userRole = user.role;
       document.getElementById("fullName").value = user.Full_Name || "";
       document.getElementById("email").value = user.email || "";
       document.getElementById("phone").value = user.Phone_number || "";
       document.getElementById("id").value = user.User_ID || "";
       loadBorrowedBooks();
     });
-      function loadBorrowedBooks() {
-        fetch(`/borrowed-books?user_id=${userId}`)
-            .then(res => res.json())
-            .then(data => {
-                const container = document.getElementById("borrowedBooks");
-    
-                // Kiểm tra xem có dữ liệu hay không
-                if (data.length === 0 || data[0].length === 0) {
-                    container.innerHTML = "<p>Không có sách nào đang mượn.</p>";
-                    return;
-                }
-    
-                const books = data[0];
-    
-                let tableHTML = `
-                    <table style="width: 100%; border-collapse: collapse; background-color: rgba(255, 255, 255, 0.05);">
-                        <thead>
-                            <tr style="background-color: rgba(255, 255, 255, 0.2);">
-                                <th style="padding: 10px; border: 1px solid #ccc;">Tên sách</th>
-                                <th style="padding: 10px; border: 1px solid #ccc;">Tác giả</th>
-                                <th style="padding: 10px; border: 1px solid #ccc;">Ngày mượn</th>
-                                <th style="padding: 10px; border: 1px solid #ccc;">Hạn trả</th>
-                                <th style="padding: 10px; border: 1px solid #ccc;">Trạng thái</th>
-                                <th style="padding: 10px; border: 1px solid #ccc;">Hành động</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                `;
-    
-                books.forEach(book => {
-                    const borrowDate = new Date(book.Borrow_Date).toLocaleDateString();
-                    const returnDate = new Date(book.Return_Date).toLocaleDateString();
-                    const actualReturnDate = new Date(book.Actual_Return_Date).toLocaleDateString();
-                    const status = book.Status;
-    
-                    let actionBtn = "";
-                    if (status === "Đang mượn") {
-                        actionBtn = `<button class="btn" onclick="returnBook(${book.Borrow_ID}, event)" style="background-color: #dc3545;">Trả lại</button>`;
-                    } else if (status === "Trễ hạn") {
-                        actionBtn = `<button class="btn" onclick="showPenalty(${book.Borrow_ID})" style="background-color: orange;">Thông tin phạt</button>`;
-                    } else {
-                        actionBtn = `<span style="color: #ccc;">Đã trả vào ${actualReturnDate || "chưa có"}</span>`;
-                    }
-    
-                    tableHTML += `
-                        <tr>
-                            <td style="padding: 10px; border: 1px solid #ccc;">${book.book}</td>
-                            <td style="padding: 10px; border: 1px solid #ccc;">${book.author}</td>
-                            <td style="padding: 10px; border: 1px solid #ccc;">${borrowDate}</td>
-                            <td style="padding: 10px; border: 1px solid #ccc;">${returnDate}</td>
-                            <td style="padding: 10px; border: 1px solid #ccc;">${status}</td>
-                            <td style="padding: 10px; border: 1px solid #ccc;">${actionBtn}</td>
-                        </tr>
-                    `;
-                });
-    
-                tableHTML += `</tbody></table>`;
-                container.innerHTML = tableHTML;
-            })
-            .catch(err => {
-                console.error("Error loading borrowed books:", err);
-                document.getElementById("borrowedBooks").innerHTML = "<p>Không thể tải danh sách sách đã mượn.</p>";
-            });
-    }
-    
-      
-    
-      
-      function returnBook(borrowId, event) {
+
+    function loadBorrowedBooks() {
+      fetch(`/borrowed-books?user_id=${userId}`)
+          .then(res => res.json())
+          .then(data => {
+              const container = document.getElementById("borrowedBooks");
+  
+              // Kiểm tra xem có dữ liệu hay không
+              if (data.length === 0 || data[0].length === 0) {
+                  container.innerHTML = "<p>Không có sách nào đang mượn.</p>";
+                  return;
+              }
+  
+              const books = data[0];
+  
+              let tableHTML = `
+                  <table style="width: 100%; border-collapse: collapse; background-color: rgba(255, 255, 255, 0.05);">
+                      <thead>
+                          <tr style="background-color: rgba(255, 255, 255, 0.2);">
+                              <th style="padding: 10px; border: 1px solid #ccc;">Tên sách</th>
+                              <th style="padding: 10px; border: 1px solid #ccc;">Tác giả</th>
+                              <th style="padding: 10px; border: 1px solid #ccc;">Ngày mượn</th>
+                              <th style="padding: 10px; border: 1px solid #ccc;">Hạn trả</th>
+                              <th style="padding: 10px; border: 1px solid #ccc;">Trạng thái</th>
+                              <th style="padding: 10px; border: 1px solid #ccc;">Hành động</th>
+                          </tr>
+                      </thead>
+                      <tbody>
+              `;
+  
+              books.forEach(book => {
+                  const borrowDate = new Date(book.Borrow_Date).toLocaleDateString();
+                  const returnDate = new Date(book.Return_Date).toLocaleDateString();
+                  const actualReturnDate = new Date(book.Actual_Return_Date).toLocaleDateString();
+                  const status = book.Status;
+                  const maxExtensionDate = new Date(book.Return_Date);
+                  maxExtensionDate.setDate(maxExtensionDate.getDate() + 7);  // Gia hạn tối đa 7 ngày
+  
+                  let actionBtn = "";
+                  let extendBtn = "";
+  
+                  if (status === "Đang mượn") {
+                      actionBtn = `<button class="btn" onclick="returnBook(${book.Borrow_ID}, event)" style="background-color: #dc3545;">Trả lại</button>`;
+  
+                      // Nếu ngày trả chưa qua 7 ngày, cho phép gia hạn
+                      if (new Date() < maxExtensionDate) {
+                          extendBtn = `<button class="btn" onclick="extendLoan(${book.Borrow_ID}, event)">Gia hạn</button>`;
+                      } else {
+                          extendBtn = `<span style="color: #ccc;">Không thể gia hạn nữa</span>`;
+                      }
+                  } else if (status === "Trễ hạn") {
+                      actionBtn = `<button class="btn" onclick="showPenalty(${book.Borrow_ID})" style="background-color: orange;">Thông tin phạt</button>`;
+                  } else {
+                      actionBtn = `<span style="color: #ccc;">Đã trả vào ${actualReturnDate || "chưa có"}</span>`;
+                  }
+  
+                  tableHTML += `
+                      <tr>
+                          <td style="padding: 10px; border: 1px solid #ccc;">${book.book}</td>
+                          <td style="padding: 10px; border: 1px solid #ccc;">${book.author}</td>
+                          <td style="padding: 10px; border: 1px solid #ccc;">${borrowDate}</td>
+                          <td style="padding: 10px; border: 1px solid #ccc;">${returnDate}</td>
+                          <td style="padding: 10px; border: 1px solid #ccc;">${status}</td>
+                          <td style="padding: 10px; border: 1px solid #ccc;">${actionBtn} ${extendBtn}</td>
+                      </tr>
+                  `;
+              });
+  
+              tableHTML += `</tbody></table>`;
+              container.innerHTML = tableHTML;
+          })
+          .catch(err => {
+              console.error("Error loading borrowed books:", err);
+              document.getElementById("borrowedBooks").innerHTML = "<p>Không thể tải danh sách sách đã mượn.</p>";
+          });
+  }
+  
+  function extendLoan(borrowId, event) {
+      const bookRow = event.target.closest("tr");  // Lấy dòng sách
+      const returnDateCell = bookRow.querySelector("td:nth-child(4)");  // Lấy ô ngày hạn trả
+  
+      // Tạo cửa sổ chọn ngày gia hạn
+      const currentReturnDate = new Date(returnDateCell.textContent);
+      const maxDate = new Date(currentReturnDate);
+      maxDate.setDate(currentReturnDate.getDate() + 7);  // Tối đa 7 ngày
+  
+      // Hiển thị ngày chọn gia hạn
+      const newReturnDate = prompt("Chọn ngày gia hạn (Tối đa 7 ngày từ hạn trả):", maxDate.toLocaleDateString());
+  
+      // Kiểm tra định dạng ngày
+      const selectedDate = new Date(newReturnDate);
+      if (selectedDate > maxDate || selectedDate < currentReturnDate) {
+          alert("Ngày gia hạn không hợp lệ. Vui lòng chọn trong phạm vi cho phép.");
+          return;
+      }
+  
+      // Cập nhật lại ngày trả sách và vô hiệu hóa nút gia hạn
+      fetch(`/extend-loan/${borrowId}`, {
+          method: "PATCH",
+          headers: {
+              "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+              newReturnDate: selectedDate.toLocaleDateString()
+          })
+      })
+      .then(res => res.json())
+      .then(data => {
+          alert("Đã gia hạn thành công!");
+          loadBorrowedBooks();  // Cập nhật lại danh sách sách đã mượn
+      })
+      .catch(err => {
+          alert("Lỗi khi gia hạn sách!");
+          console.error(err);
+      });
+  }
+
+    function returnBook(borrowId, event) {
         const now = new Date();
-        const formattedDate = now.toLocaleDateString(); // Lấy ngày hiện tại (không có giờ)
-        
-        // Lưu thời điểm này tạm vào localStorage
+        const formattedDate = now.toLocaleDateString(); 
+
         localStorage.setItem(`returned_${borrowId}`, formattedDate);
-    
+
         const button = event.target;
         button.disabled = true;
         button.textContent = "Đang xử lý...";
-    
-        // Gửi yêu cầu PATCH để cập nhật ngày trả sách vào cơ sở dữ liệu
+
         fetch(`/update-return-date/${borrowId}`, {
-            method: "PATCH",  // Dùng PATCH vì chúng ta chỉ muốn cập nhật trường cụ thể
+            method: "PATCH",  
             headers: {
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                Actual_Return_Date: formattedDate  // Chỉ cập nhật ngày trả sách (không có giờ)
+                Actual_Return_Date: formattedDate 
             })
         })
         .then(res => res.json())
         .then(data => {
             alert(data.message || "Đã trả sách!");
-    
-            // Sau khi trả sách thành công, cập nhật lại phần hiển thị hành động
-            loadBorrowedBooks(); // Cập nhật lại bảng danh sách sách đã mượn
+            loadBorrowedBooks(); 
         })
         .catch(err => {
             console.error(err);
@@ -246,43 +290,48 @@
             button.textContent = "Trả lại";
         });
     }
-      
-      function showPenalty(borrowId)
-      {
-        window.location.href = `fine_detail.html?borrowId=${borrowId}`;
-      }
-      function goBack() {
-        if (userRole === "user") {
-          window.location.href = "index.html";
-        } else {
-          window.location.href = "employee_home.html";
-        }
-      }
-      
-    function updateUser() {
-      const fullName = document.getElementById("fullName").value;
-      const email = document.getElementById("email").value;
-      const phone = document.getElementById("phone").value;
 
-      fetch("/update-user", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          Full_Name: fullName,
-          email: email,
-          Phone_number: phone
+    function extendBook(borrowId) {
+        alert("Gia hạn sách thành công!");
+        // Thực hiện gia hạn tại đây (có thể gửi yêu cầu PATCH để gia hạn thời gian trả)
+    }
+
+    function showPenalty(borrowId) {
+        window.location.href = `fine_detail.html?borrowId=${borrowId}`;
+    }
+
+    function goBack() {
+        if (userRole === "user") {
+            window.location.href = "index.html";
+        } else {
+            window.location.href = "employee_home.html";
+        }
+    }
+
+    function updateUser() {
+        const fullName = document.getElementById("fullName").value;
+        const email = document.getElementById("email").value;
+        const phone = document.getElementById("phone").value;
+
+        fetch("/update-user", {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                Full_Name: fullName,
+                email: email,
+                Phone_number: phone
+            })
         })
-      })
-      .then(res => res.json())
-      .then(data => {
-        alert("Cập nhật thành công!");
-      })
-      .catch(err => {
-        alert("Cập nhật thất bại!");
-        console.error(err);
-      });
+        .then(res => res.json())
+        .then(data => {
+            alert("Cập nhật thành công!");
+        })
+        .catch(err => {
+            alert("Cập nhật thất bại!");
+            console.error(err);
+        });
     }
   </script>
 </body>

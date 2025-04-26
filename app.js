@@ -764,6 +764,26 @@ app.post('/update-fine', checkAuth, upload.none(), async (req, res) => {
         res.status(500).json({ message: 'Lỗi không xác định khi cập nhật phiếu phạt.' });
     }
 });
+// Gia hạn ngày mượn
+app.patch('/extend-loan/:borrowId', async (req, res) => {
+    const { borrowId } = req.params;
+    let { newReturnDate } = req.body;
+
+    // Chuyển đổi ngày từ M/D/YYYY sang YYYY-MM-DD
+    const [month, day, year] = newReturnDate.split('/');
+    const formattedDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+
+    try {
+        // Gọi thủ tục UpdateReturnDate để gia hạn sách
+        const [rows] = await db.query('CALL UpdateReturnDate(?, ?)', [borrowId, formattedDate]);
+
+        // Kiểm tra kết quả, nếu thành công sẽ có kết quả trả về
+        res.json({ message: 'Đã gia hạn sách thành công' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Cập nhật thất bại' });
+    }
+});
 // Chạy server
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server chạy tại http://localhost:${PORT}`);
