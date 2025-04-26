@@ -128,6 +128,8 @@
 
   <script>
     let userId = null;
+    let isStudent = false;
+    let isTeacher = false;
 
     // Lấy thông tin người dùng hiện tại
     fetch("/current-user")
@@ -136,6 +138,8 @@
       const user = data[0];
       userId = user.User_ID;
       userRole = user.role;
+      isStudent = user.Sinh_vien === 1;
+      isTeacher = user.Giao_vien === 1;
       document.getElementById("fullName").value = user.Full_Name || "";
       document.getElementById("email").value = user.email || "";
       document.getElementById("phone").value = user.Phone_number || "";
@@ -220,44 +224,54 @@
   }
   
   function extendLoan(borrowId, event) {
-      const bookRow = event.target.closest("tr");  // Lấy dòng sách
-      const returnDateCell = bookRow.querySelector("td:nth-child(4)");  // Lấy ô ngày hạn trả
-  
-      // Tạo cửa sổ chọn ngày gia hạn
-      const currentReturnDate = new Date(returnDateCell.textContent);
-      const maxDate = new Date(currentReturnDate);
-      maxDate.setDate(currentReturnDate.getDate() + 7);  // Tối đa 7 ngày
-  
-      // Hiển thị ngày chọn gia hạn
-      const newReturnDate = prompt("Chọn ngày gia hạn (Tối đa 7 ngày từ hạn trả):", maxDate.toLocaleDateString());
-  
-      // Kiểm tra định dạng ngày
-      const selectedDate = new Date(newReturnDate);
-      if (selectedDate > maxDate || selectedDate < currentReturnDate) {
-          alert("Ngày gia hạn không hợp lệ. Vui lòng chọn trong phạm vi cho phép.");
-          return;
-      }
-  
-      // Cập nhật lại ngày trả sách và vô hiệu hóa nút gia hạn
-      fetch(`/extend-loan/${borrowId}`, {
-          method: "PATCH",
-          headers: {
-              "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-              newReturnDate: selectedDate.toLocaleDateString()
-          })
-      })
-      .then(res => res.json())
-      .then(data => {
-          alert("Đã gia hạn thành công!");
-          loadBorrowedBooks();  // Cập nhật lại danh sách sách đã mượn
-      })
-      .catch(err => {
-          alert("Lỗi khi gia hạn sách!");
-          console.error(err);
-      });
-  }
+    const bookRow = event.target.closest("tr");  // Lấy dòng sách
+    const returnDateCell = bookRow.querySelector("td:nth-child(4)");  // Ô ngày hạn trả
+
+    const currentReturnDate = new Date(returnDateCell.textContent);
+    const maxDate = new Date(currentReturnDate);
+
+    // Nếu là sinh viên thì chỉ cộng 7 ngày, giáo viên thì cộng 14 ngày
+    if (isStudent) {
+        maxDate.setDate(currentReturnDate.getDate() + 7);
+    } else if (isTeacher) {
+        maxDate.setDate(currentReturnDate.getDate() + 14);
+    } else {
+        alert("Không xác định vai trò người dùng! Không thể gia hạn.");
+        return;
+    }
+
+    const newReturnDateInput = prompt(`Chọn ngày gia hạn (Tối đa đến ${maxDate.toLocaleDateString()}):`, maxDate.toLocaleDateString());
+    if (!newReturnDateInput) {
+        return; // Người dùng bấm Cancel
+    }
+
+    const selectedDate = new Date(newReturnDateInput);
+    if (selectedDate > maxDate || selectedDate < currentReturnDate) {
+        alert("Ngày gia hạn không hợp lệ. Vui lòng chọn trong phạm vi cho phép.");
+        return;
+    }
+
+    // Gửi request gia hạn
+    fetch(`/extend-loan/${borrowId}`, {
+        method: "PATCH",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            newReturnDate: selectedDate.toLocaleDateString()
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        alert("Đã gia hạn thành công!");
+        loadBorrowedBooks();
+    })
+    .catch(err => {
+        alert("Lỗi khi gia hạn sách!");
+        console.error(err);
+    });
+}
+
 
     function returnBook(borrowId, event) {
         const now = new Date();
