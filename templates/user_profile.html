@@ -186,10 +186,10 @@
   
                   let actionBtn = "";
                   let extendBtn = "";
-  
+                  
                   if (status === "Đang mượn") {
                       actionBtn = `<button class="btn" onclick="returnBook(${book.Borrow_ID}, event)" style="background-color: #dc3545;">Trả lại</button>`;
-  
+                  
                       // Nếu ngày trả chưa qua 7 ngày, cho phép gia hạn
                       if (new Date() < maxExtensionDate) {
                           extendBtn = `<button class="btn" onclick="extendLoan(${book.Borrow_ID}, event)">Gia hạn</button>`;
@@ -198,10 +198,16 @@
                       }
                   } else if (status === "Trễ hạn") {
                       actionBtn = `<button class="btn" onclick="showPenalty(${book.Borrow_ID})" style="background-color: orange;">Thông tin phạt</button>`;
+                  } else if (status === "Đã trả") {
+                      // Thêm thông tin phạt nếu sách đã trả
+                      if (book.Fine_ID) {  // Kiểm tra nếu có thông tin phạt
+                          actionBtn = `<button class="btn" onclick="showPenalty(${book.Borrow_ID})" style="background-color: orange;">Thông tin phạt</button>`;
+                      } else {
+                          actionBtn = `<span style="color: #ccc;">Đã trả vào ${actualReturnDate || "chưa có"}</span>`;
+                      }
                   } else {
-                      actionBtn = `<span style="color: #ccc;">Đã trả vào ${actualReturnDate || "chưa có"}</span>`;
+                      actionBtn = `<span style="color: #ccc;">Trạng thái không xác định</span>`;
                   }
-  
                   tableHTML += `
                       <tr>
                           <td style="padding: 10px; border: 1px solid #ccc;">${book.book}</td>
@@ -226,51 +232,80 @@
   function extendLoan(borrowId, event) {
     const bookRow = event.target.closest("tr");  // Lấy dòng sách
     const returnDateCell = bookRow.querySelector("td:nth-child(4)");  // Ô ngày hạn trả
+    const renewCell = bookRow.querySelector("td:nth-child(5)");  // Ô renew (nếu có)
 
     const currentReturnDate = new Date(returnDateCell.textContent);
     const maxDate = new Date(currentReturnDate);
 
-    // Nếu là sinh viên thì chỉ cộng 7 ngày, giáo viên thì cộng 14 ngày
-    if (isStudent) {
-        maxDate.setDate(currentReturnDate.getDate() + 7);
-    } else if (isTeacher) {
-        maxDate.setDate(currentReturnDate.getDate() + 14);
-    } else {
-        alert("Không xác định vai trò người dùng! Không thể gia hạn.");
-        return;
-    }
+    // Gọi API để lấy thông tin số lần gia hạn (renew)
+    fetch(`/get-renew/${borrowId}`)
+        .then(res => res.json())
+        .then(data => {
+            const renewCount = data[0].renew;
+            console.log("Dữ liệu trả về từ API:", data); // Log toàn bộ dữ liệu trả về
+            console.log("Số lần gia hạn (renew):", data[0].renew);  // Dữ liệu trả về từ backend (ví dụ: { renew: 1 })
 
-    const newReturnDateInput = prompt(`Chọn ngày gia hạn (Tối đa đến ${maxDate.toLocaleDateString()}):`, maxDate.toLocaleDateString());
-    if (!newReturnDateInput) {
-        return; // Người dùng bấm Cancel
-    }
+            // Kiểm tra số lần gia hạn từ dữ liệu trả về
+            if (isStudent && renewCount >= 1) {
+                alert("Sinh viên đã gia hạn hết lượt: 1 lần.");
+                event.target.disabled = true;  // Disable nút gia hạn
+                return;
+            } else if (isTeacher && renewCount >= 2) {
+                alert("Giáo viên đã gia hạn hết lượt: 2 lần.");
+                event.target.disabled = true;  // Disable nút gia hạn
+                return;
+            }
 
-    const selectedDate = new Date(newReturnDateInput);
-    if (selectedDate > maxDate || selectedDate < currentReturnDate) {
-        alert("Ngày gia hạn không hợp lệ. Vui lòng chọn trong phạm vi cho phép.");
-        return;
-    }
+            // Tính toán ngày gia hạn tối đa dựa trên vai trò người dùng
+            if (isStudent) {
+                maxDate.setDate(currentReturnDate.getDate() + 14);  // Sinh viên: Gia hạn 14 ngày
+            } else if (isTeacher) {
+                maxDate.setDate(currentReturnDate.getDate() + 30);  // Giáo viên: Gia hạn 30 ngày
+            } else {
+                alert("Không xác định vai trò người dùng! Không thể gia hạn.");
+                return;
+            }
 
-    // Gửi request gia hạn
-    fetch(`/extend-loan/${borrowId}`, {
-        method: "PATCH",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            newReturnDate: selectedDate.toLocaleDateString()
+            const newReturnDateInput = prompt(`Chọn ngày gia hạn (Tối đa đến ${maxDate.toLocaleDateString()}):`, maxDate.toLocaleDateString());
+            if (!newReturnDateInput) {
+                return; // Người dùng bấm Cancel
+            }
+
+            const selectedDate = new Date(newReturnDateInput);
+            if (selectedDate > maxDate || selectedDate < currentReturnDate) {
+                alert("Ngày gia hạn không hợp lệ. Vui lòng chọn trong phạm vi cho phép.");
+                return;
+            }
+
+            // Gửi request gia hạn
+            fetch(`/extend-loan/${borrowId}`, {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    newReturnDate: selectedDate.toLocaleDateString()
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                alert("Đã gia hạn thành công!");
+                // Cập nhật lại trạng thái UI sau khi gia hạn
+                renewCell.textContent = renewCount + 1; // Tăng số lần gia hạn lên 1
+                event.target.disabled = true;  // Disable nút gia hạn sau khi gia hạn thành công
+                loadBorrowedBooks();  // Load lại danh sách sách mượn
+            })
+            .catch(err => {
+                alert("Lỗi khi gia hạn sách!");
+                console.error(err);
+            });
         })
-    })
-    .then(res => res.json())
-    .then(data => {
-        alert("Đã gia hạn thành công!");
-        loadBorrowedBooks();
-    })
-    .catch(err => {
-        alert("Lỗi khi gia hạn sách!");
-        console.error(err);
-    });
+        .catch(err => {
+            alert("Lỗi khi lấy thông tin gia hạn!");
+            console.error(err);
+        });
 }
+
 
 
     function returnBook(borrowId, event) {

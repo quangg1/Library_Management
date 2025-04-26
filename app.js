@@ -566,14 +566,15 @@ app.get('/borrowed-books',checkAuth, async (req, res) => {
 });
 
 // Lấy danh sách sách đã mượn
-app.post('/add-book',upload.none(), async (req, res) => {
+app.post('/add-book', upload.none(), async (req, res) => {
     const {
       book, author, book_subject, book_publisher_name,
-      image, pub_date, earliest_pub_date, language, isbn
+      image, pub_date, earliest_pub_date, language, isbn,
+      permission_level   // ✅ Lấy thêm permission_level từ form
     } = req.body;
   
     try {
-      await db.query('CALL add_book(?, ?, ?, ?, ?, ?, ?, ?, ?)', [
+      await db.query('CALL add_book(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
         book,
         author,
         book_subject,
@@ -582,7 +583,8 @@ app.post('/add-book',upload.none(), async (req, res) => {
         pub_date,
         earliest_pub_date,
         language,
-        isbn
+        isbn,
+        permission_level    // ✅ Thêm vào tham số cuối cùng
       ]);
       res.json({ message: 'Thêm sách thành công' });
     } catch (err) {
@@ -774,7 +776,6 @@ app.patch('/extend-loan/:borrowId', async (req, res) => {
     const formattedDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
 
     try {
-        // Gọi thủ tục UpdateReturnDate để gia hạn sách
         const [rows] = await db.query('CALL UpdateReturnDate(?, ?)', [borrowId, formattedDate]);
 
         // Kiểm tra kết quả, nếu thành công sẽ có kết quả trả về
@@ -782,6 +783,25 @@ app.patch('/extend-loan/:borrowId', async (req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Cập nhật thất bại' });
+    }
+});
+// Lấy số lần gia hạn
+app.get('/get-renew/:borrowId', async (req, res) => {
+    const borrowId = req.params.borrowId;
+    try {
+        // Gọi stored procedure để lấy thông tin mượn sách
+        const [rows] = await db.query('CALL GetBorrowById(?)', [borrowId]);
+
+        // Kiểm tra nếu không tìm thấy bản ghi
+        if (rows.length === 0) {
+            return res.status(404).json({ message: 'Không tìm thấy thông tin mượn sách' });
+        }
+
+        // Trả về toàn bộ thông tin của bản ghi (bao gồm tất cả các cột từ bảng borrow)
+        res.json(rows[0]); // rows[0] chứa bản ghi đầu tiên
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Lỗi khi lấy thông tin mượn sách' });
     }
 });
 // Chạy server

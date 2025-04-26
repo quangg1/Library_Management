@@ -153,7 +153,12 @@
 
     <label>ISBN</label>
     <input type="text" name="isbn" id="isbn">
-
+    <label>Mức độ</label>
+    <select name="permission_level" id="permission_level" required>
+    <option value="0">Bình thường</option>
+    <option value="1">Quan trọng</option>
+    </select>
+    <br>
     <button type="submit">Thêm sách</button>
     <button class="back-btn" type="button" onclick="window.location.href='/employee_home.html'">Quay lại</button>
   </form>
