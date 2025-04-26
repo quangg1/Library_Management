@@ -178,7 +178,7 @@
                             <tbody>
                                 ${employees.map(e => `
                                     <tr>
-                                        <td>${e.Full_Name}</td>
+                                        <td>${e.User_ID}</td>
                                         <td>${e.email}</td>
                                         <td>${e.Phone_number}</td>
                                         <td><button class="btn-delete" onclick="deleteEmployee(${e.Employee_ID})">Xóa</button></td>
@@ -200,10 +200,7 @@
         function loadUsers() {
             fetch("/users")
                 .then(res => res.json())
-                .then(data => {
-                    // Lấy mảng người dùng từ phản hồi (mảng đầu tiên)
-                    const users = data[0];
-                    
+                .then(users => {
                     if (users.length === 0) {
                         document.getElementById("userList").innerHTML = "Không có người dùng nào.";
                         return;
@@ -222,10 +219,17 @@
                             <tbody>
                                 ${users.map(u => `
                                     <tr>
-                                        <td>${u.Full_Name}</td>
-                                        <td>${u.email}</td>
+                                        <td>
+                                            <span class="user-name" onclick="toggleBooks(${u.User_ID})" style="cursor:pointer; color:#4db8ff;">
+                                                ${u.Full_Name}
+                                            </span>
+                                        </td>
+                                        <td>${u.Email}</td>
                                         <td>${u.Phone_number}</td>
                                         <td><button class="btn-delete" onclick="deleteUser(${u.User_ID})">Xóa</button></td>
+                                    </tr>
+                                    <tr id="borrowed-row-${u.User_ID}" style="display: none;">
+                                        <td colspan="4" id="borrowed-${u.User_ID}" style="padding-left: 30px; background: #181828;"></td>
                                     </tr>
                                 `).join("")}
                             </tbody>
@@ -239,6 +243,7 @@
                     document.getElementById("userList").innerHTML = "Có lỗi xảy ra khi tải danh sách người dùng.";
                 });
         }
+        
     
             async function deleteEmployee(id) {
                 const confirm = await Swal.fire({
@@ -293,6 +298,57 @@
                     }
                 }
             }
+            function toggleBooks(userID) {
+                const row = document.getElementById(`borrowed-row-${userID}`);
+                const container = document.getElementById(`borrowed-${userID}`);
+                
+                if (row.style.display === 'none') {
+                    fetch(`/borrowed-books?user_id=${userID}`)
+                        .then(res => res.json())
+                        .then(data => {
+                            const books = data[0];
+                            if (books.length === 0) {
+                                container.innerHTML = "<em>Không có sách nào được mượn.</em>";
+                            } else {
+                                container.innerHTML = `
+                                    <strong style="display: block; margin-bottom: 10px;">📚 Danh sách sách đã mượn:</strong>
+                                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                                        ${books.map((b, index) => `
+                                            <div style="background-color: #26263a; padding: 12px 16px; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.4);">
+                                                <div style="font-size: 16px; font-weight: bold; color: #4db8ff;">${b.book}</div>
+                                                <div style="margin-top: 4px; color: #ccc;">
+                                                    <span>📅 ${formatDate(b.Borrow_Date)} → ${formatDate(b.Return_Date)}</span><br>
+                                                    <span>🔖 Trạng thái: <em>${b.Status}</em></span>
+                                                </div>
+                                                <div style="margin-top: 8px;">
+                                                    <button onclick="viewFineDetail(${b.Borrow_ID})"
+                                                        style="padding: 6px 12px; background-color: #ffc107; color: #000; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                                                        📄 Thông tin phạt
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        `).join("")}
+                                    </div>
+                                `;
+                            }
+                            row.style.display = 'table-row';
+                        });
+                } else {
+                    row.style.display = 'none';
+                }
+            }
+            
+            function viewFineDetail(Borrow_ID) {
+                // Chuyển hướng với tham số URL thay vì dùng localStorage
+                window.location.href = `/fine_detail.html?borrowId=${Borrow_ID}`;
+            }
+            
+            function formatDate(dateStr) {
+                if (!dateStr) return "Không rõ";
+                const d = new Date(dateStr);
+                return d.toLocaleDateString('vi-VN');
+            }
+            
         
     </script>
 </body>

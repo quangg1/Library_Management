@@ -524,8 +524,8 @@ app.get('/change_password.html',checkAuth, (req, res) => {
     res.sendFile(__dirname + "/templates/change_password.html");
   });
 // Mượn sách
-app.get('/borrowed-books', async (req, res) => {
-    const userId = req.session.user_id;
+app.get('/borrowed-books',checkAuth, async (req, res) => {
+    const userId = req.query.user_id;
   
     if (!userId) {
       return res.status(400).json({ error: "Thiếu user_id" });
@@ -541,6 +541,7 @@ app.get('/borrowed-books', async (req, res) => {
       res.status(500).json({ error: 'Lỗi máy chủ' });
     }
   });
+  
   
   app.post("/borrow", async (req, res) => {
     const userId = req.session.user_id;
@@ -663,8 +664,8 @@ app.get('/management', checkAuth, (req, res) => {
 // Lấy danh sách người dùng
 app.get("/users", async (req, res) => {
     try {
-        const result = await db.query("CALL get_users()"); // Gọi thủ tục get_users
-        res.json(result[0]); // Kết quả từ thủ tục sẽ là mảng dữ liệu
+        const [rows] = await db.query("CALL get_users()");
+        res.json(rows[0]); // chỉ trả về mảng dữ liệu chính, không nested
     } catch (err) {
         console.error("Lỗi khi lấy users:", err);
         res.status(500).json({ error: "Lỗi server khi lấy danh sách người dùng" });
@@ -705,6 +706,62 @@ app.delete("/delete-employee/:id", async (req, res) => {
     } catch (err) {
         console.error("Lỗi xóa employee:", err);
         res.status(500).json({ error: "Lỗi khi xóa nhân viên" });
+    }
+});
+//// Thông tin phạt ////
+app.get('/fine-detail/:borrowId', async (req, res) => {
+    const { borrowId } = req.params;
+    const role = req.session.user?.role || "user"; // fallback nếu chưa đăng nhập
+  
+    try {
+      const result = await db.query("CALL GetFineDetail(?)", [borrowId]);
+      res.json({ fine: result[0][0], userRole: role });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Lỗi khi lấy thông tin phạt." });
+    }
+  });
+app.get('/fine_detail.html',checkAuth, (req, res) => {
+    res.sendFile(path.join(__dirname, 'templates', 'fine_detail.html'));
+});
+app.get('/get-fines/:borrowId', checkAuth, async (req, res) => {
+    const { borrowId } = req.params; // Lấy Borrow_ID từ URL
+    const role = req.session.user?.role || "user";
+
+    // Kiểm tra borrowId hợp lệ
+    if (isNaN(borrowId) || borrowId === 'null') {
+        return res.status(400).json({ message: 'Borrow_ID không hợp lệ.' });
+    }
+
+    try {
+        // Gọi stored procedure để lấy thông tin phiếu phạt theo Borrow_ID
+        const [fines] = await db.query('CALL GetFineByFineId(?)', [borrowId]);
+
+        res.json({ fines, userRole: role });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Lỗi khi lấy dữ liệu phiếu phạt.' });
+    }
+});
+// Update phiếu phat
+app.post('/update-fine', checkAuth, upload.none(), async (req, res) => {
+    try {
+        // Kiểm tra dữ liệu nhận được từ req.body
+        console.log("Received data:", req.body);
+
+        const { Fine_ID, User_ID, Book_ID, Mat_sach, Hu_hong, Fine_amount, Da_thanh_toan, so_ngay_tre_han } = req.body;
+
+        // Gọi thủ tục UpdateFine
+        const query = `CALL UpdateFine(?, ?, ?, ?, ?, ?, ?)`;
+        const [rows, fields] = await db.query(query, [Fine_ID, User_ID, Book_ID, Mat_sach, Hu_hong,Da_thanh_toan, so_ngay_tre_han]);
+
+        console.log("Result from CALL:", rows);
+
+        res.json({ message: 'Cập nhật phiếu phạt thành công' });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Lỗi không xác định khi cập nhật phiếu phạt.' });
     }
 });
 // Chạy server

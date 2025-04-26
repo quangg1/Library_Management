@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Thêm phiếu phạt</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      padding: 40px;
+      background: linear-gradient(to right, #f8f9fa, #e9ecef);
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+      margin-bottom: 30px;
+    }
+    form {
+      max-width: 600px;
+      margin: 0 auto;
+      background: white;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    }
+    label {
+      display: block;
+      margin-top: 15px;
+      font-weight: 600;
+      color: #495057;
+    }
+    input {
+      width: 100%;
+      padding: 12px;
+      margin-top: 5px;
+      border-radius: 10px;
+      border: 1px solid #ced4da;
+      transition: border 0.3s, box-shadow 0.3s;
+      font-size: 15px;
+    }
+    input:focus {
+      border-color: #80bdff;
+      box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+      outline: none;
+    }
+    button {
+      margin-top: 25px;
+      padding: 12px 20px;
+      font-size: 16px;
+      font-weight: 600;
+      background: #dc3545;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.3s, transform 0.2s;
+    }
+    button:hover {
+      background: #c82333;
+      transform: scale(1.03);
+    }
+    .back-btn {
+      background: #6c757d;
+      margin-left: 10px;
+    }
+    .back-btn:hover {
+      background: #5a6268;
+    }
+    #bgVideo {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        object-fit: cover;
+        z-index: -1;
+    }
+    table {
+      width: 100%;
+      margin-top: 30px;
+      border-collapse: collapse;
+    }
+    table, th, td {
+      border: 1px solid #dee2e6;
+    }
+    th, td {
+      padding: 10px;
+      text-align: center;
+    }
+    tr:hover {
+      background-color: #f1f1f1;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+    <video id="bgVideo" autoplay loop muted>
+        <source src="73478-548608753_medium.mp4" type="video/mp4">
+    </video>
+  <h1>Thêm phiếu phạt</h1>
+  <form id="fineForm">
+    <label>Mã người dùng (User_ID)</label>
+    <input type="text" name="User_ID" id="userID" required>
+
+    <label>Mã sách (Book_ID)</label>
+    <input type="text" name="Book_ID" id="bookID" required>
+
+    <label>Mất sách? (1: Có, 0: Không)</label>
+    <input type="number" name="Mat_sach" id="matSach" min="0" max="1" required>
+
+    <label>Hư hỏng? </label>
+    <input type="number" name="Hu_hong" id="huHong" min="0" max="100" required>
+
+    <label>Số tiền phạt (Fine_amount)</label>
+    <input type="number" name="Fine_amount" id="fineAmount" >
+
+    <label>Đã thanh toán? (1: Có, 0: Chưa)</label>
+    <input type="number" name="Da_thanh_toan" id="daThanhToan" min="0" max="1" required>
+
+    <label>Số ngày trễ hạn</label>
+    <input type="number" name="so_ngay_tre_han" id="soNgayTreHan" required>
+
+    <button type="submit">Thêm phiếu phạt</button>
+    <button class="back-btn" type="button" onclick="goBack()">Quay lại</button>
+    <input type="hidden" name="Fine_ID" id="fineID">
+  </form>
+
+
+
+  <script>
+    let userRole = null;
+let fineId = null;
+let fines = [];
+
+// Function to get query parameters from URL
+function getQueryParams() {
+  const urlParams = new URLSearchParams(window.location.search);
+  fineId = urlParams.get('borrowId');  // ✅ Lấy Borrow_ID (đóng vai trò như Fine_ID)
+}
+
+// Gọi khi trang load
+window.onload = function () {
+    getQueryParams();
+    loadFineDetail(); // ✅
+  };
+
+
+
+// Go back
+function goBack() {
+  if (userRole === "user") {
+    window.location.href = "index.html";
+  } else {
+    window.location.href = "employee_home.html";
+  }
+}
+
+// Lấy role và khóa chức năng nếu không phải nhân viên
+fetch('/user_type')
+  .then(res => res.json())
+  .then(data => {
+    userRole = data.role;
+    if (userRole !== 'Employee') {
+      document.getElementById('fineForm').querySelectorAll('input, button').forEach(el => {
+        if (!el.classList.contains('back-btn')) {
+          el.disabled = true;
+        }
+      });
+
+      const warning = document.createElement('p');
+      warning.textContent = 'Bạn không có quyền thêm phiếu phạt.';
+      warning.style.color = 'red';
+      warning.style.fontWeight = 'bold';
+      warning.style.textAlign = 'center';
+      document.body.insertBefore(warning, document.getElementById('fineForm'));
+    }
+  });
+
+// Tải danh sách phiếu phạt theo Borrow_ID
+async function loadFineDetail() {
+    try {
+      // Kiểm tra nếu fineId không hợp lệ
+      if (!fineId) {
+        alert('Không có thông tin phiếu phạt.');
+        return;
+      }
+  
+      // Gửi yêu cầu lấy dữ liệu
+      const res = await fetch(`/get-fines/${fineId}`);
+      
+      // Kiểm tra mã lỗi từ server
+      if (!res.ok) {
+        throw new Error('Không thể tải phiếu phạt từ server.');
+      }
+  
+      const data = await res.json();
+      
+      // Kiểm tra cấu trúc dữ liệu
+      if (!data || !data.fines || !Array.isArray(data.fines) || data.fines.length === 0 || !Array.isArray(data.fines[0])) {
+        alert('Không tìm thấy phiếu phạt.');
+        return;
+      }
+  
+      const fine = data.fines[0][0]; // Truy cập phần tử đầu tiên trong mảng
+  
+      document.getElementById('fineID').value = fine.Fine_ID;
+      document.getElementById('userID').value = fine.User_ID;
+      document.getElementById('bookID').value = fine.Book_ID;
+      document.getElementById('matSach').value = fine.Mat_sach;
+      document.getElementById('huHong').value = fine.Hu_hong;
+      document.getElementById('fineAmount').value = fine.Fine_amount;
+      document.getElementById('daThanhToan').value = fine.Da_thanh_toan;
+      document.getElementById('soNgayTreHan').value = fine.so_ngay_tre_han;
+  
+    } catch (error) {
+      alert('Lỗi: ' + error.message);
+    }
+  }
+  // Cập nhật thông tin phiếu phạt
+  document.getElementById('fineForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    
+    // Lấy dữ liệu từ form
+    const formData = new FormData(this);
+    
+    // Chuyển formData thành một object để log kiểm tra
+    const formObject = {};
+    formData.forEach((value, key) => {
+        formObject[key] = value;
+    });
+
+    console.log('Form Data:', formObject);  // Log dữ liệu trước khi gửi
+
+    // Gửi yêu cầu POST đến server để cập nhật thông tin phiếu phạt
+    const res = await fetch(`/update-fine`, {
+      method: 'POST',
+      body: formData // Gửi nguyên FormData
+    });
+  
+    const result = await res.json();
+    if (res.ok) {
+      alert('Cập nhật phiếu phạt thành công!');
+      // Chuyển đến danh sách phiếu phạt
+    } else {
+      alert('Lỗi: ' + (result.message || 'Không xác định'));
+    }
+});
+
+  </script>
+  
+</body>
+</html>

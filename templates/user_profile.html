@@ -141,9 +141,10 @@
       document.getElementById("email").value = user.email || "";
       document.getElementById("phone").value = user.Phone_number || "";
       document.getElementById("id").value = user.User_ID || "";
+      loadBorrowedBooks();
     });
       function loadBorrowedBooks() {
-        fetch("/borrowed-books")
+        fetch(`/borrowed-books?user_id=${userId}`)
             .then(res => res.json())
             .then(data => {
                 const container = document.getElementById("borrowedBooks");
@@ -248,7 +249,7 @@
       
       function showPenalty(borrowId)
       {
-
+        window.location.href = `fine_detail.html?borrowId=${borrowId}`;
       }
       function goBack() {
         if (userRole === "user") {
@@ -283,7 +284,6 @@
         console.error(err);
       });
     }
-    loadBorrowedBooks();
   </script>
 </body>
 </html>
