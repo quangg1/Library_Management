@@ -178,8 +178,8 @@
                             <tbody>
                                 ${employees.map(e => `
                                     <tr>
-                                        <td>${e.User_ID}</td>
-                                        <td>${e.email}</td>
+                                        <td>${e.Full_Name}</td>
+                                        <td>${e.Email}</td>
                                         <td>${e.Phone_number}</td>
                                         <td><button class="btn-delete" onclick="deleteEmployee(${e.Employee_ID})">Xóa</button></td>
                                     </tr>
