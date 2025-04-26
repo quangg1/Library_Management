@@ -1,0 +1,182 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Thêm người dùng mới</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      padding: 40px;
+      background: linear-gradient(to right, #f8f9fa, #e9ecef);
+    }
+    h1 {
+      text-align: center;
+      color: #f1f1f1;
+      margin-bottom: 30px;
+    }
+    form {
+      max-width: 600px;
+      margin: 0 auto;
+      background: white;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    }
+    label {
+      display: block;
+      margin-top: 15px;
+      font-weight: 600;
+      color: #495057;
+    }
+    input, select {
+      width: 100%;
+      padding: 12px;
+      margin-top: 5px;
+      border-radius: 10px;
+      border: 1px solid #ced4da;
+      transition: border 0.3s, box-shadow 0.3s;
+      font-size: 15px;
+    }
+    input:focus, select:focus {
+      border-color: #80bdff;
+      box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+      outline: none;
+    }
+    button 
+      {
+      margin-top: 25px;
+      padding: 12px 20px;
+      font-size: 16px;
+      font-weight: 600;
+      background: #28a745;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.3s, transform 0.2s;
+    }
+    button:hover {
+      background: #218838;
+      transform: scale(1.03);
+    }
+    .back-btn {
+      background: #6c757d;
+      margin-left: 10px;
+    }
+    .back-btn:hover {
+      background: #5a6268;
+    }
+    #bgVideo {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      object-fit: cover;
+      z-index: -1;
+    }
+    #email_message, #phone_message {
+      color: red;
+      font-size: 14px;
+      margin-top: 5px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <video id="bgVideo" autoplay loop muted>
+    <source src="73478-548608753_medium.mp4" type="video/mp4">
+  </video>
+
+  <h1>Thêm người dùng mới</h1>
+  <form id="userForm">
+
+    <label>Mã người dùng (User_ID)</label>
+    <input type="text" name="userID" id="userID" required>
+
+    <label>Họ và tên</label>
+    <input type="text" name="fullName" id="fullName" required>
+
+    <label>Email</label>
+    <input type="email" name="email" id="email" required>
+    <div id="email_message"></div>
+
+    <label>Số điện thoại</label>
+    <input type="text" name="phone" id="phone" required>
+    <div id="phone_message"></div>
+
+    <label>Mật khẩu</label>
+    <input type="password" name="password" id="password" required>
+
+    <label>Vai trò</label>
+    <select name="role" id="role" required>
+      <option value="">Chọn vai trò</option>
+      <option value="admin">Admin</option>
+      <option value="employee">Employee</option>
+    </select>
+
+    <button type="submit" id="submitBtn" disabled>Thêm người dùng</button>
+    <button class="back-btn" type="button" onclick="window.location.href='/employee_home.html'">Quay lại</button>
+  </form>
+
+  <script>
+    const emailInput = document.getElementById('email');
+    const phoneInput = document.getElementById('phone');
+    const emailMessage = document.getElementById('email_message');
+    const phoneMessage = document.getElementById('phone_message');
+    const submitBtn = document.getElementById('submitBtn');
+
+    async function checkUnique() {
+      const email = emailInput.value;
+      const phone = phoneInput.value;
+      emailMessage.style.display = 'none';
+      phoneMessage.style.display = 'none';
+      submitBtn.disabled = true;
+
+      if (!email || !phone) return;
+
+      const res = await fetch('/check-unique', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, phone })
+      });
+      const result = await res.json();
+
+      if (!result.success) {
+        if (result.message === 'email_exists') {
+          emailMessage.textContent = 'Email đã tồn tại!';
+          emailMessage.style.display = 'block';
+        } else if (result.message === 'phone_exists') {
+          phoneMessage.textContent = 'Số điện thoại đã tồn tại!';
+          phoneMessage.style.display = 'block';
+        }
+      } else {
+        submitBtn.disabled = false;
+      }
+    }
+
+    emailInput.addEventListener('input', checkUnique);
+    phoneInput.addEventListener('input', checkUnique);
+
+    document.getElementById('userForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const role = document.getElementById('role').value;
+      const admin = role === 'admin' ? 1 : 0;
+      const employee = role === 'employee' ? 1 : 0;
+
+      const formData = new FormData(this);
+      formData.append('admin', admin);
+      formData.append('employee', employee);
+
+      const res = await fetch('/add-employee', { method: 'POST', body: formData });
+      const result = await res.json();
+
+      if (res.ok) {
+        alert('Thêm người dùng thành công!');
+        this.reset();
+        submitBtn.disabled = true;
+      } else {
+        alert('Đã xảy ra lỗi: ' + (result.message || 'Không xác định'));
+      }
+    });
+  </script>
+</body>
+</html>

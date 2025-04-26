@@ -1,0 +1,126 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Thêm chủ đề mới</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 40px;
+            background: linear-gradient(to right, #f8f9fa, #e9ecef);
+        }
+
+        h1 {
+            text-align: center;
+            color: #f1f1f1;
+            margin-bottom: 30px;
+        }
+
+        form {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        label {
+            display: block;
+            margin-top: 15px;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            margin-top: 5px;
+            border-radius: 10px;
+            border: 1px solid #ced4da;
+            transition: border 0.3s, box-shadow 0.3s;
+            font-size: 15px;
+        }
+
+            input:focus {
+                border-color: #80bdff;
+                box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+                outline: none;
+            }
+
+        button {
+            margin-top: 25px;
+            padding: 12px 20px;
+            font-size: 16px;
+            font-weight: 600;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.2s;
+        }
+
+            button:hover {
+                background: #218838;
+                transform: scale(1.03);
+            }
+
+        .back-btn {
+            background: #6c757d;
+            margin-left: 10px;
+        }
+
+            .back-btn:hover {
+                background: #5a6268;
+            }
+
+        #bgVideo {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            object-fit: cover;
+            z-index: -1;
+        }
+    </style>
+</head>
+<body>
+    <video id="bgVideo" autoplay loop muted>
+        <source src="73478-548608753_medium.mp4" type="video/mp4">
+    </video>
+
+    <h1>Thêm chủ đề mới</h1>
+    <form id="subjectForm">
+        <label>Tên chủ đề</label>
+        <input type="text" name="bookSubject" id="bookSubject" required>
+
+        <label>Số lượng tác giả</label>
+        <input type="number" name="numberOfAuthors" id="numberOfAuthors" min="0" required>
+
+        <label>Số lượng sách</label>
+        <input type="number" name="numberOfBooks" id="numberOfBooks" min="0" required>
+
+        <button type="submit">Thêm chủ đề</button>
+        <button class="back-btn" type="button" onclick="window.location.href='/employee_home.html'">Quay lại</button>
+    </form>
+
+    <script>
+        document.getElementById('subjectForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+
+            const res = await fetch('/add-subject', { method: 'POST', body: formData });
+            const result = await res.json();
+
+            if (result.success) {
+                alert('Thêm chủ đề thành công!');
+                this.reset();
+            } else {
+                alert('Đã xảy ra lỗi: ' + (result.message || 'Không xác định'));
+            }
+        });
+    </script>
+</body>
+</html>

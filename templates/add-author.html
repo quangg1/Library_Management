@@ -1,0 +1,178 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Thêm tác giả mới</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 40px;
+            background: linear-gradient(to right, #f8f9fa, #e9ecef);
+        }
+
+        h1 {
+            text-align: center;
+            color: #f1f1f1;
+            margin-bottom: 30px;
+        }
+
+        form {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        label {
+            display: block;
+            margin-top: 15px;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            margin-top: 5px;
+            border-radius: 10px;
+            border: 1px solid #ced4da;
+            transition: border 0.3s, box-shadow 0.3s;
+            font-size: 15px;
+        }
+
+            input:focus, select:focus {
+                border-color: #80bdff;
+                box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+                outline: none;
+            }
+
+        button {
+            margin-top: 25px;
+            padding: 12px 20px;
+            font-size: 16px;
+            font-weight: 600;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.2s;
+        }
+
+            button:hover {
+                background: #218838;
+                transform: scale(1.03);
+            }
+
+        .back-btn {
+            background: #6c757d;
+            margin-left: 10px;
+        }
+
+            .back-btn:hover {
+                background: #5a6268;
+            }
+
+        #bgVideo {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            object-fit: cover;
+            z-index: -1;
+        }
+
+        #author_id_message {
+            color: red;
+            font-size: 14px;
+            margin-top: 5px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <video id="bgVideo" autoplay loop muted>
+        <source src="73478-548608753_medium.mp4" type="video/mp4">
+    </video>
+
+    <h1>Thêm tác giả mới</h1>
+    <form id="authorForm">
+        <label>Mã tác giả (Author_ID)</label>
+        <input type="number" name="authorId" id="authorId" required>
+        <div id="author_id_message"></div>
+
+        <label>Tên tác giả</label>
+        <input type="text" name="author" id="author" required>
+
+        <label>Năm sinh</label>
+        <input type="text" name="birthDate" id="birthDate" placeholder="VD: 1980">
+
+        <label>Năm mất</label>
+        <input type="text" name="deathDate" id="deathDate" placeholder="VD: 2020">
+
+        <label>Số sách đã xuất bản</label>
+        <input type="number" name="numberOfBooks" id="numberOfBooks">
+
+        <label>Ngày xuất bản đầu tiên</label>
+        <input type="text" name="firstPublicationDate" id="firstPublicationDate" placeholder="VD: 2000-01-01">
+
+        <label>Ngày xuất bản cuối cùng</label>
+        <input type="text" name="lastPublicationDate" id="lastPublicationDate" placeholder="VD: 2023-01-01">
+
+        <label>Số sách trong series</label>
+        <input type="text" name="booksInSeries" id="booksInSeries">
+
+        <button type="submit" id="submitBtn" disabled>Thêm tác giả</button>
+        <button class="back-btn" type="button" onclick="window.location.href='/employee_home.html'">Quay lại</button>
+    </form>
+
+    <script>
+        const authorIdInput = document.getElementById('authorId');
+        const authorIdMessage = document.getElementById('author_id_message');
+        const submitBtn = document.getElementById('submitBtn');
+
+        async function checkUniqueAuthorId() {
+            const authorId = authorIdInput.value;
+            authorIdMessage.style.display = 'none';
+            submitBtn.disabled = true;
+
+            if (!authorId) return;
+
+            const res = await fetch('/check-author-id', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ authorId })
+            });
+            const result = await res.json();
+
+            if (!result.success) {
+                authorIdMessage.textContent = 'Mã tác giả đã tồn tại!';
+                authorIdMessage.style.display = 'block';
+            } else {
+                submitBtn.disabled = false;
+            }
+        }
+
+        authorIdInput.addEventListener('input', checkUniqueAuthorId);
+
+        document.getElementById('authorForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+
+            const res = await fetch('/add-author', { method: 'POST', body: formData });
+            const result = await res.json();
+
+            if (result.success) {
+                alert('Thêm tác giả thành công!');
+                this.reset();
+                submitBtn.disabled = true;
+            } else {
+                alert('Đã xảy ra lỗi: ' + (result.message || 'Không xác định'));
+            }
+        });
+    </script>
+</body>
+</html>

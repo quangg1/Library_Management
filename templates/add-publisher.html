@@ -1,0 +1,129 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Thêm nhà xuất bản mới</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 40px;
+            background: linear-gradient(to right, #f8f9fa, #e9ecef);
+        }
+
+        h1 {
+            text-align: center;
+            color: #f1f1f1;
+            margin-bottom: 30px;
+        }
+
+        form {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        label {
+            display: block;
+            margin-top: 15px;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            margin-top: 5px;
+            border-radius: 10px;
+            border: 1px solid #ced4da;
+            transition: border 0.3s, box-shadow 0.3s;
+            font-size: 15px;
+        }
+
+            input:focus, select:focus {
+                border-color: #80bdff;
+                box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+                outline: none;
+            }
+
+        button {
+            margin-top: 25px;
+            padding: 12px 20px;
+            font-size: 16px;
+            font-weight: 600;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.2s;
+        }
+
+            button:hover {
+                background: #218838;
+                transform: scale(1.03);
+            }
+
+        .back-btn {
+            background: #6c757d;
+            margin-left: 10px;
+        }
+
+            .back-btn:hover {
+                background: #5a6268;
+            }
+
+        #bgVideo {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            object-fit: cover;
+            z-index: -1;
+        }
+    </style>
+</head>
+<body>
+    <video id="bgVideo" autoplay loop muted>
+        <source src="73478-548608753_medium.mp4" type="video/mp4">
+    </video>
+
+    <h1>Thêm nhà xuất bản mới</h1>
+    <form id="publisherForm">
+        <label>Tên nhà xuất bản</label>
+        <input type="text" name="book_publisher" id="book_publisher" required>
+
+        <label>Số lượng sách đã xuất bản</label>
+        <input type="number" name="number_of_books_published" id="number_of_books_published" required>
+
+        <label>Năm xuất bản gần đây</label>
+        <input type="text" name="latest_publication_date" id="latest_publication_date" placeholder="Ví dụ: 2023" required>
+
+        <label>Năm đầu tiên xuất bản</label>
+        <input type="number" name="earliest_publication_date" id="earliest_publication_date" placeholder="Ví dụ: 1990" required>
+
+        <button type="submit">Thêm nhà xuất bản</button>
+        <button class="back-btn" type="button" onclick="window.location.href='/employee_home.html'">Quay lại</button>
+    </form>
+
+    <script>
+        document.getElementById('publisherForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+
+            const res = await fetch('/add-publisher', { method: 'POST', body: formData });
+            const result = await res.json();
+
+            if (result.success) {
+                alert('Thêm nhà xuất bản thành công!');
+                this.reset();
+            } else {
+                alert('Đã xảy ra lỗi: ' + (result.message || 'Không xác định'));
+            }
+        });
+    </script>
+</body>
+</html>
