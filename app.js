@@ -392,15 +392,63 @@ app.post('/register', (req, res) => {
                     console.error("Lỗi khi mã hóa mật khẩu:", err ? err.message : "Mật khẩu không hợp lệ");
                     return res.status(500).json({ success: false, message: "Lỗi khi mã hóa mật khẩu!" });
                 }
+                CREATE PROCEDURE account_registration(
+                    IN p_userID VARCHAR(255),
+                    IN p_fullName VARCHAR(255),
+                    IN p_email VARCHAR(255),
+                    IN p_password VARCHAR(255),
+                    IN p_phone VARCHAR(255),
+                    IN p_sinhvien TINYINT(1),
+                    IN p_giaovien TINYINT(1)
+                )
+                BEGIN
+                DECLARE exit handler for SQLEXCEPTION
+                BEGIN
+                ROLLBACK;
+                END;
 
+                START TRANSACTION;
                 // Thêm người dùng mới vào database
                 const insertQuery = `
                     INSERT INTO user (User_ID, Full_Name, Email, Password, Phone_number, Sinh_vien, Giao_vien)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    VALUES (p_userID, p_fullName, p_email, p_password, p_phone, p_sinhvien, p_giaovien)
                 `;
 
                 const values = [userID, fullName, email, hashedPassword, phone, sinhvien, giaovien];
+                //Tạo user database
+                SET @createUserSQL = CONCAT('CREATE USER '', p_userID, ''@' % ' IDENTIFIED BY '', p_password, '';');
+                PREPARE stmt FROM @createUserSQL;
+                EXECUTE stmt;
+                DEALLOCATE PREPARE stmt;
 
+                //Cấp quyền
+                SET @grantSQL11 = CONCAT('GRANT SELECT ON library_management.all_authors TO '', p_userID, ''@' % ';');
+                SET @grantSQL12 = CONCAT('GRANT SELECT ON library_management.all_book TO '', p_userID, ''@' % ';');
+                SET @grantSQL13 = CONCAT('GRANT SELECT ON library_management.all_book_publishers TO '', p_userID, ''@' % ';');
+                SET @grantSQL14 = CONCAT('GRANT SELECT ON library_management.all_book_series TO '', p_userID, ''@' % ';');
+                SET @grantSQL15 = CONCAT('GRANT SELECT ON library_management.all_book_subjects TO '', p_userID, ''@' % ';');
+                PREPARE stmt11 FROM @grantSQL11;
+                EXECUTE stmt11;
+                DEALLOCATE PREPARE stmt11;
+
+                PREPARE stmt12 FROM @grantSQL12;
+                EXECUTE stmt12;
+                DEALLOCATE PREPARE stmt12;
+
+                PREPARE stmt13 FROM @grantSQL13;
+                EXECUTE stmt13;
+                DEALLOCATE PREPARE stmt13;
+
+                PREPARE stmt14 FROM @grantSQL14;
+                EXECUTE stmt14;
+                DEALLOCATE PREPARE stmt14;
+
+                PREPARE stmt15 FROM @grantSQL15;
+                EXECUTE stmt15;
+                DEALLOCATE PREPARE stmt15;
+
+                COMMIT;
+                END;
                 connection.query(insertQuery, values, (err, result) => {
                     connection.release();
                     if (err) {
@@ -855,7 +903,7 @@ app.post('/add-employee', upload.none(), checkAuth, async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, 10);
 
         // Thêm nhân viên vào database
-        await db.query('CALL add_employee(?, ?, ?, ?, ?, ?)', [
+        await db.query('CALL add_employee(p_adminID,p_fullName,p_email,p_phone,P, ?)', [
             adminId,      // Admin_ID từ session
             fullName,     // Full_Name
             email,        // Email
@@ -863,6 +911,71 @@ app.post('/add-employee', upload.none(), checkAuth, async (req, res) => {
             role,         // Role (Employee hoặc Admin)
             hashedPassword // Password đã mã hóa
         ]);
+
+        //Tạo user database cho nhân viên
+        SET @createEmployeeSQL = CONCAT('CREATE USER \'', p_employeeID, '\'@\'%\' IDENTIFIED BY \'', p_password, '\';');
+        PREPARE stmt FROM @createEmployeeSQL;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+
+        //Cấp quyền cho nhân viên(dựa trên employee_role)
+        //Quyền trên các bảng
+        SET @grantSQL1 = CONCAT('GRANT SELECT, INSERT, UPDATE ON library_management.all_authors TO \'', p_employeeID, '\'@\'%\';');
+        SET @grantSQL2 = CONCAT('GRANT SELECT, INSERT, UPDATE ON library_management.all_book_publishers TO \'', p_employeeID, '\'@\'%\';');
+        SET @grantSQL3 = CONCAT('GRANT SELECT, INSERT, UPDATE ON library_management.all_book_series TO \'', p_employeeID, '\'@\'%\';');
+        SET @grantSQL4 = CONCAT('GRANT SELECT, INSERT, UPDATE ON library_management.all_book_subjects TO \'', p_employeeID, '\'@\'%\';');
+        SET @grantSQL5 = CONCAT('GRANT SELECT, INSERT, UPDATE ON library_management.all_book TO \'', p_employeeID, '\'@\'%\';'); 
+        SET @grantSQL6 = CONCAT('GRANT SELECT, INSERT, UPDATE, DELETE ON library_management.borrow TO \'', p_employeeID, '\'@\'%\';');
+        SET @grantSQL7 = CONCAT('GRANT SELECT, INSERT, UPDATE, DELETE ON library_management.fine TO \'', p_employeeID, '\'@\'%\';');
+        SET @grantSQL8 = CONCAT('GRANT SELECT, INSERT, UPDATE, DELETE ON library_management.user TO \'', p_employeeID, '\'@\'%\';');
+
+        //Quyền thực thi procedure
+        SET @grantSQL9 = CONCAT('GRANT EXECUTE ON PROCEDURE library_management.employee_approve_user TO \'', p_employeeID, '\'@\'%\';');
+        SET @grantSQL10 = CONCAT('GRANT EXECUTE ON PROCEDURE library_management.view_user_registration_requests TO \'', p_employeeID, '\'@\'%\';');
+
+        //Thực thi các lệnh GRANT
+        PREPARE stmt1 FROM @grantSQL1;
+        EXECUTE stmt1;
+        DEALLOCATE PREPARE stmt1;
+
+        PREPARE stmt2 FROM @grantSQL2;
+        EXECUTE stmt2;
+        DEALLOCATE PREPARE stmt2;
+
+        PREPARE stmt3 FROM @grantSQL3;
+        EXECUTE stmt3;
+        DEALLOCATE PREPARE stmt3;
+
+        PREPARE stmt4 FROM @grantSQL4;
+        EXECUTE stmt4;
+        DEALLOCATE PREPARE stmt4;
+
+        PREPARE stmt5 FROM @grantSQL5;
+        EXECUTE stmt5;
+        DEALLOCATE PREPARE stmt5;
+
+        PREPARE stmt6 FROM @grantSQL6;
+        EXECUTE stmt6;
+        DEALLOCATE PREPARE stmt6;
+
+        PREPARE stmt7 FROM @grantSQL7;
+        EXECUTE stmt7;
+        DEALLOCATE PREPARE stmt7;
+
+        PREPARE stmt8 FROM @grantSQL8;
+        EXECUTE stmt8;
+        DEALLOCATE PREPARE stmt8;
+
+        PREPARE stmt9 FROM @grantSQL9;
+        EXECUTE stmt9;
+        DEALLOCATE PREPARE stmt9;
+
+        PREPARE stmt10 FROM @grantSQL10;
+        EXECUTE stmt10;
+        DEALLOCATE PREPARE stmt10;
+
+        --Xác nhận hoàn tất
+        SELECT 'Tạo user nhân viên và cấp quyền thành công' AS thong_bao;
 
         res.json({ success: true, message: "Thêm nhân viên thành công!" });
     } catch (err) {
@@ -1022,340 +1135,3 @@ app.post('/add-subject', upload.none(), checkAuth, async (req, res) => {
     }
 });
 
-// API endpoint đăng ký người dùng - Cách 2: Sử dụng stored procedure từ file SQL
-app.post("/register-user-procedure", async (req, res) => {
-    const { userID, fullName, email, password, phone, sinhvien, giaovien } = req.body;
-
-    try {
-        // Băm password
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        // Kết nối database
-        const connection = await mysql.createConnection(dbConfig);
-
-        // Xác định loại tài khoản dựa vào thông tin đăng ký
-        let accountType = 'user'; // Mặc định là user
-        if (giaovien) {
-            accountType = 'employee';
-        }
-
-        // Gọi procedure register_new_account từ file SQL
-        await connection.query('CALL register_new_account(?, ?, ?, ?, ?)', [
-            userID, // p_username 
-            password, // p_password (procedure sẽ tự hash password)
-            fullName, // p_full_name
-            email, // p_email
-            accountType // p_account_type
-        ]);
-
-        await connection.end();
-
-        res.status(201).json({ message: 'Đăng ký người dùng thành công! Vui lòng chờ phê duyệt.' });
-    } catch (error) {
-        console.error('Lỗi đăng ký user:', error.message);
-        res.status(400).json({ message: 'Đăng ký người dùng thất bại!', error: error.message });
-    }
-});
-
-// API để admin phê duyệt tài khoản
-app.post("/admin/approve-account", async (req, res) => {
-    const { registrationId, adminUsername } = req.body;
-
-    try {
-        const connection = await mysql.createConnection(dbConfig);
-
-        await connection.query('CALL approve_account(?, ?)', [
-            registrationId,
-            adminUsername
-        ]);
-
-        await connection.end();
-
-        res.status(200).json({ message: 'Tài khoản đã được phê duyệt thành công' });
-    } catch (error) {
-        console.error('Lỗi phê duyệt tài khoản:', error.message);
-        res.status(400).json({ message: 'Phê duyệt tài khoản thất bại', error: error.message });
-    }
-});
-
-// API để employee phê duyệt tài khoản user
-app.post("/employee/approve-user", async (req, res) => {
-    const { registrationId, employeeUsername } = req.body;
-
-    try {
-        const connection = await mysql.createConnection(dbConfig);
-
-        await connection.query('CALL employee_approve_user(?, ?)', [
-            registrationId,
-            employeeUsername
-        ]);
-
-        await connection.end();
-
-        res.status(200).json({ message: 'Tài khoản user đã được phê duyệt thành công' });
-    } catch (error) {
-        console.error('Lỗi phê duyệt tài khoản:', error.message);
-        res.status(400).json({ message: 'Phê duyệt tài khoản thất bại', error: error.message });
-    }
-});
-
-// API để xem danh sách yêu cầu đăng ký (dành cho admin)
-app.get("/admin/registration-requests", async (req, res) => {
-    try {
-        const connection = await mysql.createConnection(dbConfig);
-
-        const [rows] = await connection.query('CALL view_registration_requests()');
-
-        await connection.end();
-
-        res.status(200).json(rows[0]);
-    } catch (error) {
-        console.error('Lỗi lấy danh sách đăng ký:', error.message);
-        res.status(400).json({ message: 'Không thể lấy danh sách đăng ký', error: error.message });
-    }
-});
-
-// API để xem danh sách yêu cầu đăng ký user (dành cho employee)
-app.get("/employee/user-registration-requests", async (req, res) => {
-    try {
-        const connection = await mysql.createConnection(dbConfig);
-
-        const [rows] = await connection.query('CALL view_user_registration_requests()');
-
-        await connection.end();
-
-        res.status(200).json(rows[0]);
-    } catch (error) {
-        console.error('Lỗi lấy danh sách đăng ký user:', error.message);
-        res.status(400).json({ message: 'Không thể lấy danh sách đăng ký user', error: error.message });
-    }
-});
-
-// API để admin thêm nhân viên mới
-app.post("/admin/add-employee", async (req, res) => {
-    try {
-        const { adminId, fullName, email, phone, role, password } = req.body;
-
-        // Kiểm tra xem người dùng có quyền admin không
-        // Code kiểm tra quyền admin có thể thêm vào đây
-
-        // Mã hóa mật khẩu
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        // Kết nối database
-        const connection = await mysql.createConnection(dbConfig);
-
-        // Gọi procedure add_employee
-        await connection.query('CALL add_employee(?, ?, ?, ?, ?, ?)', [
-            adminId,        // Admin_ID từ session
-            fullName,       // Full_Name
-            email,          // Email
-            phone || null,  // Phone_number (cho phép NULL)
-            role,           // Role (Employee hoặc Admin)
-            hashedPassword  // Password đã mã hóa
-        ]);
-
-        await connection.end();
-
-        res.status(201).json({ success: true, message: 'Thêm nhân viên mới thành công!' });
-    } catch (err) {
-        console.error("Lỗi khi thêm nhân viên:", err);
-        res.status(500).json({ success: false, message: err.sqlMessage || 'Lỗi máy chủ!' });
-    }
-});
-
-// API để lấy danh sách tất cả nhân viên
-app.get("/admin/employees", async (req, res) => {
-    try {
-        const connection = await mysql.createConnection(dbConfig);
-
-        // Truy vấn danh sách nhân viên
-        const [rows] = await connection.query('SELECT * FROM employee');
-
-        await connection.end();
-
-        res.status(200).json({ success: true, data: rows });
-    } catch (err) {
-        console.error("Lỗi khi lấy danh sách nhân viên:", err);
-        res.status(500).json({ success: false, message: err.sqlMessage || 'Lỗi máy chủ!' });
-    }
-});
-
-// API để lấy thông tin một nhân viên cụ thể
-app.get("/admin/employees/:employeeId", async (req, res) => {
-    try {
-        const { employeeId } = req.params;
-        const connection = await mysql.createConnection(dbConfig);
-
-        // Truy vấn thông tin nhân viên
-        const [rows] = await connection.query('SELECT * FROM employee WHERE Employee_ID = ?', [employeeId]);
-
-        await connection.end();
-
-        if (rows.length === 0) {
-            return res.status(404).json({ success: false, message: 'Không tìm thấy nhân viên' });
-        }
-
-        res.status(200).json({ success: true, data: rows[0] });
-    } catch (err) {
-        console.error("Lỗi khi lấy thông tin nhân viên:", err);
-        res.status(500).json({ success: false, message: err.sqlMessage || 'Lỗi máy chủ!' });
-    }
-});
-
-// API để cập nhật thông tin nhân viên
-app.put("/admin/employees/:employeeId", async (req, res) => {
-    try {
-        const { employeeId } = req.params;
-        const { fullName, email, phone, role } = req.body;
-
-        const connection = await mysql.createConnection(dbConfig);
-
-        // Cập nhật thông tin nhân viên
-        await connection.query(
-            'UPDATE employee SET Full_Name = ?, Email = ?, Phone_number = ?, Role = ? WHERE Employee_ID = ?',
-            [fullName, email, phone || null, role, employeeId]
-        );
-
-        await connection.end();
-
-        res.status(200).json({ success: true, message: 'Cập nhật thông tin nhân viên thành công' });
-    } catch (err) {
-        console.error("Lỗi khi cập nhật thông tin nhân viên:", err);
-        res.status(500).json({ success: false, message: err.sqlMessage || 'Lỗi máy chủ!' });
-    }
-});
-
-// API để đổi mật khẩu nhân viên
-app.patch("/admin/employees/:employeeId/change-password", async (req, res) => {
-    try {
-        const { employeeId } = req.params;
-        const { newPassword } = req.body;
-
-        // Mã hóa mật khẩu mới
-        const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-        const connection = await mysql.createConnection(dbConfig);
-
-        // Cập nhật mật khẩu
-        await connection.query(
-            'UPDATE employee SET Password = ? WHERE Employee_ID = ?',
-            [hashedPassword, employeeId]
-        );
-
-        await connection.end();
-
-        res.status(200).json({ success: true, message: 'Đổi mật khẩu thành công' });
-    } catch (err) {
-        console.error("Lỗi khi đổi mật khẩu nhân viên:", err);
-        res.status(500).json({ success: false, message: err.sqlMessage || 'Lỗi máy chủ!' });
-    }
-});
-
-// API để xóa nhân viên
-app.delete("/admin/employees/:employeeId", async (req, res) => {
-    try {
-        const { employeeId } = req.params;
-        const connection = await mysql.createConnection(dbConfig);
-
-        // Xóa nhân viên
-        await connection.query('DELETE FROM employee WHERE Employee_ID = ?', [employeeId]);
-
-        await connection.end();
-
-        res.status(200).json({ success: true, message: 'Xóa nhân viên thành công' });
-    } catch (err) {
-        console.error("Lỗi khi xóa nhân viên:", err);
-        res.status(500).json({ success: false, message: err.sqlMessage || 'Lỗi máy chủ!' });
-    }
-});
-
-// API để nhân viên lấy thông tin cá nhân
-app.get("/employee/profile", async (req, res) => {
-    try {
-        const employeeId = req.employee.id; // Giả sử có middleware xác thực jwt đã gán thông tin nhân viên
-
-        const connection = await mysql.createConnection(dbConfig);
-
-        // Lấy thông tin nhân viên từ ID trong token xác thực
-        const [rows] = await connection.query(
-            'SELECT Employee_ID, Full_Name, Email, Phone_number, Role FROM employee WHERE Employee_ID = ?',
-            [employeeId]
-        );
-
-        await connection.end();
-
-        if (rows.length === 0) {
-            return res.status(404).json({ success: false, message: 'Không tìm thấy thông tin nhân viên' });
-        }
-
-        res.status(200).json({ success: true, data: rows[0] });
-    } catch (err) {
-        console.error("Lỗi khi lấy thông tin cá nhân:", err);
-        res.status(500).json({ success: false, message: err.sqlMessage || 'Lỗi máy chủ!' });
-    }
-});
-
-// API để nhân viên cập nhật thông tin cá nhân
-app.put("/employee/profile", async (req, res) => {
-    try {
-        const employeeId = req.employee.id; // Giả sử có middleware xác thực jwt đã gán thông tin nhân viên
-        const { fullName, phone } = req.body; // Chỉ cho phép cập nhật một số thông tin
-
-        const connection = await mysql.createConnection(dbConfig);
-
-        // Cập nhật thông tin cá nhân
-        await connection.query(
-            'UPDATE employee SET Full_Name = ?, Phone_number = ? WHERE Employee_ID = ?',
-            [fullName, phone || null, employeeId]
-        );
-
-        await connection.end();
-
-        res.status(200).json({ success: true, message: 'Cập nhật thông tin cá nhân thành công' });
-    } catch (err) {
-        console.error("Lỗi khi cập nhật thông tin cá nhân:", err);
-        res.status(500).json({ success: false, message: err.sqlMessage || 'Lỗi máy chủ!' });
-    }
-});
-
-// API để nhân viên đổi mật khẩu
-app.patch("/employee/change-password", async (req, res) => {
-    try {
-        const employeeId = req.employee.id; // Giả sử có middleware xác thực jwt đã gán thông tin nhân viên
-        const { currentPassword, newPassword } = req.body;
-
-        const connection = await mysql.createConnection(dbConfig);
-
-        // Kiểm tra mật khẩu hiện tại
-        const [rows] = await connection.query('SELECT Password FROM employee WHERE Employee_ID = ?', [employeeId]);
-
-        if (rows.length === 0) {
-            await connection.end();
-            return res.status(404).json({ success: false, message: 'Không tìm thấy thông tin nhân viên' });
-        }
-
-        const passwordMatch = await bcrypt.compare(currentPassword, rows[0].Password);
-
-        if (!passwordMatch) {
-            await connection.end();
-            return res.status(400).json({ success: false, message: 'Mật khẩu hiện tại không đúng' });
-        }
-
-        // Mã hóa mật khẩu mới
-        const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-        // Cập nhật mật khẩu mới
-        await connection.query(
-            'UPDATE employee SET Password = ? WHERE Employee_ID = ?',
-            [hashedPassword, employeeId]
-        );
-
-        await connection.end();
-
-        res.status(200).json({ success: true, message: 'Đổi mật khẩu thành công' });
-    } catch (err) {
-        console.error("Lỗi khi đổi mật khẩu:", err);
-        res.status(500).json({ success: false, message: err.sqlMessage || 'Lỗi máy chủ!' });
-    }
-});
