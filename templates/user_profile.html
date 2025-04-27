@@ -141,7 +141,7 @@
       isStudent = user.Sinh_vien === 1;
       isTeacher = user.Giao_vien === 1;
       document.getElementById("fullName").value = user.Full_Name || "";
-      document.getElementById("email").value = user.email || "";
+      document.getElementById("email").value = user.Email || "";
       document.getElementById("phone").value = user.Phone_number || "";
       document.getElementById("id").value = user.User_ID || "";
       loadBorrowedBooks();
@@ -186,10 +186,10 @@
   
                   let actionBtn = "";
                   let extendBtn = "";
-                  
+  
                   if (status === "Đang mượn") {
                       actionBtn = `<button class="btn" onclick="returnBook(${book.Borrow_ID}, event)" style="background-color: #dc3545;">Trả lại</button>`;
-                  
+  
                       // Nếu ngày trả chưa qua 7 ngày, cho phép gia hạn
                       if (new Date() < maxExtensionDate) {
                           extendBtn = `<button class="btn" onclick="extendLoan(${book.Borrow_ID}, event)">Gia hạn</button>`;
@@ -198,16 +198,10 @@
                       }
                   } else if (status === "Trễ hạn") {
                       actionBtn = `<button class="btn" onclick="showPenalty(${book.Borrow_ID})" style="background-color: orange;">Thông tin phạt</button>`;
-                  } else if (status === "Đã trả") {
-                      // Thêm thông tin phạt nếu sách đã trả
-                      if (book.Fine_ID) {  // Kiểm tra nếu có thông tin phạt
-                          actionBtn = `<button class="btn" onclick="showPenalty(${book.Borrow_ID})" style="background-color: orange;">Thông tin phạt</button>`;
-                      } else {
-                          actionBtn = `<span style="color: #ccc;">Đã trả vào ${actualReturnDate || "chưa có"}</span>`;
-                      }
                   } else {
-                      actionBtn = `<span style="color: #ccc;">Trạng thái không xác định</span>`;
+                      actionBtn = `<span style="color: #ccc;">Đã trả vào ${actualReturnDate || "chưa có"}</span>`;
                   }
+  
                   tableHTML += `
                       <tr>
                           <td style="padding: 10px; border: 1px solid #ccc;">${book.book}</td>

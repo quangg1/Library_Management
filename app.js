@@ -178,7 +178,7 @@ app.get("/book_publisher/:id", checkAuth, async (req, res) => {
 });
 app.get('/check-publisher', async (req, res) => {
     const { name } = req.query;
-    const [rows] = await db.query('Call SearchBookPublishertBeLike (?)', name);
+    const [rows] = await db.query('Call SearchBookPublisherBeLike (?)', name);
     res.json(rows[0]);
   });
 // Series
@@ -215,7 +215,7 @@ app.get("/book_series.html",checkAuth, (req, res) => {
     res.sendFile(path.join(__dirname, "templates", "book_series.html"));
 });
 // Phần login user, va phan biet userType
-app.post('/login',(req, res) => {
+app.post('/login', (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -250,6 +250,8 @@ app.post('/login',(req, res) => {
 
             const user = results[0];
 
+            console.log("User retrieved:", user); // Debugging line
+
             bcrypt.compare(password, user.Password, (err, isMatch) => {
                 if (err) {
                     console.error("Lỗi kiểm tra mật khẩu:", err);
@@ -257,6 +259,7 @@ app.post('/login',(req, res) => {
                 }
 
                 if (!isMatch) {
+                    console.log("Password match failed"); // Debugging line
                     return res.status(401).json({ success: false, message: "Mật khẩu không chính xác!" });
                 }
 
@@ -264,25 +267,26 @@ app.post('/login',(req, res) => {
                 req.session.user_id = user.id;
                 req.session.role = user.role;
                 req.session.email = user.email;
+
                 // Xác định nếu là Sinh viên hay Giáo viên
                 let userType;
+                if (user.role === 'Admin') {
+                    userType = 'admin';
+                } else if (user.role === 'Employee') {
+                    userType = 'employee';
+                } else if (user.Sinh_vien === 1) {
+                    userType = 'sinhvien';
+                } else if (user.Giao_vien === 1) {
+                    userType = 'giaovien';
+                } else {
+                    userType = 'user'; // fallback nếu không khớp cái nào
+                }
 
-if (user.role === 'Admin') {
-    userType = 'admin';
-} else if (user.role === 'Employee') {
-    userType = 'employee';
-} else if (user.Sinh_vien === 1) {
-    userType = 'sinhvien';
-} else if (user.Giao_vien === 1) {
-    userType = 'giaovien';
-} else {
-    userType = 'user'; // fallback nếu không khớp cái nào
-}
                 req.session.userType = userType;
                 req.session.save(err => {
                     if (err) {
-                      console.error('Lỗi lưu session:', err);
-                      return res.status(500).json({ success: false, message: "Lỗi server" });
+                        console.error('Lỗi lưu session:', err);
+                        return res.status(500).json({ success: false, message: "Lỗi server" });
                     }
                     res.json({
                         success: true,
@@ -298,6 +302,7 @@ if (user.role === 'Admin') {
         });
     });
 });
+
 app.get('/user_type', (req, res) => {
     const userType = req.session.userType; 
     const userId=req.session.user_id ;
@@ -436,9 +441,9 @@ app.post('/register', (req, res) => {
                                   `- Tên người dùng MySQL: ${userID}\n` +
                                   `- Mật khẩu MySQL: ${password}\n\n` +
                                 `Để kết nối với MySQL, bạn có thể sử dụng các thông tin trên với công cụ như DBeaver hoặc MySQL Workbench.\n\n` +
-                                `Server Host của bạn : yamanote.proxy.rlwy.net`
-                                `Port:25297`
-                                `Tên Database:library_management`
+                                `Server Host của bạn : yamanote.proxy.rlwy.net.\n\n`+
+                                `Port:25297.\n\n`+
+                                `Tên Database:library_management.\n\n`+
                                   `Lưu ý: Hãy thay đổi mật khẩu MySQL sau khi đăng nhập lần đầu để bảo mật tài khoản.\n\n` +
                                   `Chúc bạn sử dụng hệ thống thành công!`
                         };
@@ -555,8 +560,8 @@ app.put('/change-password', async (req, res) => {
         const newHashedPassword = await bcrypt.hash(new_password, 10);
 
         // Cập nhật mật khẩu
-        const sqlUpdate = "UPDATE user SET password = ? WHERE User_ID = ?";
-        await db.query(sqlUpdate, [newHashedPassword, userId]);
+        const sqlUpdate = "CALL change_user_password(?, ?)";
+        await db.query(sqlUpdate, [userId, newHashedPassword]);
 
         return res.json({ success: true, message: "Đổi mật khẩu thành công!" });
     } catch (err) {
@@ -564,7 +569,6 @@ app.put('/change-password', async (req, res) => {
         return res.status(500).json({ success: false, error: "Lỗi máy chủ khi đổi mật khẩu." });
     }
 });
-
 
 
 app.get('/change_password.html',checkAuth, (req, res) => {
@@ -961,7 +965,6 @@ app.post('/add-user', upload.none(), checkAuth, async (req, res) => {
             sinhvien,
             giaovien
         ]);
-
         res.json({ success: true, message: "Thêm người dùng thành công!" });
     } catch (err) {
         console.error("Lỗi khi thêm người dùng:", err);
