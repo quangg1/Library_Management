@@ -395,7 +395,7 @@ app.post('/register', (req, res) => {
                 // Thêm người dùng mới vào database
                 const insertQuery = `
                     INSERT INTO user (User_ID, Full_Name, Email, Password, Phone_number, Sinh_vien, Giao_vien)
-                    VALUES (p_userID, p_fullName, p_email, p_password, p_phone, p_sinhvien, p_giaovien)
+                    VALUES (?,?,?,?,?,?,?)
                 `;
 
                 const values = [userID, fullName, email, hashedPassword, phone, sinhvien, giaovien];
@@ -854,7 +854,7 @@ app.post('/add-employee', upload.none(), checkAuth, async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, 10);
 
         // Thêm nhân viên vào database
-        await db.query('CALL add_employee(p_adminID,p_fullName,p_email,p_phone,P, ?)', [
+        await db.query('CALL add_employee(?,?,?,?,?, ?)', [
             adminId,      // Admin_ID từ session
             fullName,     // Full_Name
             email,        // Email
