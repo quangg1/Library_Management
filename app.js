@@ -392,22 +392,6 @@ app.post('/register', (req, res) => {
                     console.error("Lỗi khi mã hóa mật khẩu:", err ? err.message : "Mật khẩu không hợp lệ");
                     return res.status(500).json({ success: false, message: "Lỗi khi mã hóa mật khẩu!" });
                 }
-                CREATE PROCEDURE account_registration(
-                    IN p_userID VARCHAR(255),
-                    IN p_fullName VARCHAR(255),
-                    IN p_email VARCHAR(255),
-                    IN p_password VARCHAR(255),
-                    IN p_phone VARCHAR(255),
-                    IN p_sinhvien TINYINT(1),
-                    IN p_giaovien TINYINT(1)
-                )
-                BEGIN
-                DECLARE exit handler for SQLEXCEPTION
-                BEGIN
-                ROLLBACK;
-                END;
-
-                START TRANSACTION;
                 // Thêm người dùng mới vào database
                 const insertQuery = `
                     INSERT INTO user (User_ID, Full_Name, Email, Password, Phone_number, Sinh_vien, Giao_vien)
@@ -416,39 +400,6 @@ app.post('/register', (req, res) => {
 
                 const values = [userID, fullName, email, hashedPassword, phone, sinhvien, giaovien];
                 //Tạo user database
-                SET @createUserSQL = CONCAT('CREATE USER '', p_userID, ''@' % ' IDENTIFIED BY '', p_password, '';');
-                PREPARE stmt FROM @createUserSQL;
-                EXECUTE stmt;
-                DEALLOCATE PREPARE stmt;
-
-                //Cấp quyền
-                SET @grantSQL11 = CONCAT('GRANT SELECT ON library_management.all_authors TO '', p_userID, ''@' % ';');
-                SET @grantSQL12 = CONCAT('GRANT SELECT ON library_management.all_book TO '', p_userID, ''@' % ';');
-                SET @grantSQL13 = CONCAT('GRANT SELECT ON library_management.all_book_publishers TO '', p_userID, ''@' % ';');
-                SET @grantSQL14 = CONCAT('GRANT SELECT ON library_management.all_book_series TO '', p_userID, ''@' % ';');
-                SET @grantSQL15 = CONCAT('GRANT SELECT ON library_management.all_book_subjects TO '', p_userID, ''@' % ';');
-                PREPARE stmt11 FROM @grantSQL11;
-                EXECUTE stmt11;
-                DEALLOCATE PREPARE stmt11;
-
-                PREPARE stmt12 FROM @grantSQL12;
-                EXECUTE stmt12;
-                DEALLOCATE PREPARE stmt12;
-
-                PREPARE stmt13 FROM @grantSQL13;
-                EXECUTE stmt13;
-                DEALLOCATE PREPARE stmt13;
-
-                PREPARE stmt14 FROM @grantSQL14;
-                EXECUTE stmt14;
-                DEALLOCATE PREPARE stmt14;
-
-                PREPARE stmt15 FROM @grantSQL15;
-                EXECUTE stmt15;
-                DEALLOCATE PREPARE stmt15;
-
-                COMMIT;
-                END;
                 connection.query(insertQuery, values, (err, result) => {
                     connection.release();
                     if (err) {
@@ -911,72 +862,6 @@ app.post('/add-employee', upload.none(), checkAuth, async (req, res) => {
             role,         // Role (Employee hoặc Admin)
             hashedPassword // Password đã mã hóa
         ]);
-
-        //Tạo user database cho nhân viên
-        SET @createEmployeeSQL = CONCAT('CREATE USER \'', p_employeeID, '\'@\'%\' IDENTIFIED BY \'', p_password, '\';');
-        PREPARE stmt FROM @createEmployeeSQL;
-        EXECUTE stmt;
-        DEALLOCATE PREPARE stmt;
-
-        //Cấp quyền cho nhân viên(dựa trên employee_role)
-        //Quyền trên các bảng
-        SET @grantSQL1 = CONCAT('GRANT SELECT, INSERT, UPDATE ON library_management.all_authors TO \'', p_employeeID, '\'@\'%\';');
-        SET @grantSQL2 = CONCAT('GRANT SELECT, INSERT, UPDATE ON library_management.all_book_publishers TO \'', p_employeeID, '\'@\'%\';');
-        SET @grantSQL3 = CONCAT('GRANT SELECT, INSERT, UPDATE ON library_management.all_book_series TO \'', p_employeeID, '\'@\'%\';');
-        SET @grantSQL4 = CONCAT('GRANT SELECT, INSERT, UPDATE ON library_management.all_book_subjects TO \'', p_employeeID, '\'@\'%\';');
-        SET @grantSQL5 = CONCAT('GRANT SELECT, INSERT, UPDATE ON library_management.all_book TO \'', p_employeeID, '\'@\'%\';'); 
-        SET @grantSQL6 = CONCAT('GRANT SELECT, INSERT, UPDATE, DELETE ON library_management.borrow TO \'', p_employeeID, '\'@\'%\';');
-        SET @grantSQL7 = CONCAT('GRANT SELECT, INSERT, UPDATE, DELETE ON library_management.fine TO \'', p_employeeID, '\'@\'%\';');
-        SET @grantSQL8 = CONCAT('GRANT SELECT, INSERT, UPDATE, DELETE ON library_management.user TO \'', p_employeeID, '\'@\'%\';');
-
-        //Quyền thực thi procedure
-        SET @grantSQL9 = CONCAT('GRANT EXECUTE ON PROCEDURE library_management.employee_approve_user TO \'', p_employeeID, '\'@\'%\';');
-        SET @grantSQL10 = CONCAT('GRANT EXECUTE ON PROCEDURE library_management.view_user_registration_requests TO \'', p_employeeID, '\'@\'%\';');
-
-        //Thực thi các lệnh GRANT
-        PREPARE stmt1 FROM @grantSQL1;
-        EXECUTE stmt1;
-        DEALLOCATE PREPARE stmt1;
-
-        PREPARE stmt2 FROM @grantSQL2;
-        EXECUTE stmt2;
-        DEALLOCATE PREPARE stmt2;
-
-        PREPARE stmt3 FROM @grantSQL3;
-        EXECUTE stmt3;
-        DEALLOCATE PREPARE stmt3;
-
-        PREPARE stmt4 FROM @grantSQL4;
-        EXECUTE stmt4;
-        DEALLOCATE PREPARE stmt4;
-
-        PREPARE stmt5 FROM @grantSQL5;
-        EXECUTE stmt5;
-        DEALLOCATE PREPARE stmt5;
-
-        PREPARE stmt6 FROM @grantSQL6;
-        EXECUTE stmt6;
-        DEALLOCATE PREPARE stmt6;
-
-        PREPARE stmt7 FROM @grantSQL7;
-        EXECUTE stmt7;
-        DEALLOCATE PREPARE stmt7;
-
-        PREPARE stmt8 FROM @grantSQL8;
-        EXECUTE stmt8;
-        DEALLOCATE PREPARE stmt8;
-
-        PREPARE stmt9 FROM @grantSQL9;
-        EXECUTE stmt9;
-        DEALLOCATE PREPARE stmt9;
-
-        PREPARE stmt10 FROM @grantSQL10;
-        EXECUTE stmt10;
-        DEALLOCATE PREPARE stmt10;
-
-        --Xác nhận hoàn tất
-        SELECT 'Tạo user nhân viên và cấp quyền thành công' AS thong_bao;
-
         res.json({ success: true, message: "Thêm nhân viên thành công!" });
     } catch (err) {
         console.error("Lỗi khi thêm nhân viên:", err);
