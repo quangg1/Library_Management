@@ -348,6 +348,8 @@ app.post('/check-unique', (req, res) => {
 });
 
 // API để xử lý đăng ký
+const nodemailer = require('nodemailer');
+
 app.post('/register', (req, res) => {
     const { userID, fullName, email, password, phone, sinhvien, giaovien } = req.body;
     console.log(req.body);
@@ -362,7 +364,7 @@ app.post('/register', (req, res) => {
             return res.status(500).json({ success: false, message: "Lỗi server: " + err.message });
         }
 
-        // Kiểm tra User_ID có bị trùng không
+        // Kiểm tra User_ID đã tồn tại chưa
         connection.query('SELECT * FROM user WHERE User_ID = ?', [userID], (err, userIdRows) => {
             if (err) {
                 connection.release();
@@ -384,7 +386,7 @@ app.post('/register', (req, res) => {
                 return res.json({ success: false, message: "Phải chọn một vai trò: Sinh viên hoặc Giáo viên!" });
             }
 
-            // Mã hóa mật khẩu
+            // Mã hóa password
             const saltRounds = 10;
             bcrypt.hash(password, saltRounds, (err, hashedPassword) => {
                 if (err || !hashedPassword) {
@@ -392,27 +394,73 @@ app.post('/register', (req, res) => {
                     console.error("Lỗi khi mã hóa mật khẩu:", err ? err.message : "Mật khẩu không hợp lệ");
                     return res.status(500).json({ success: false, message: "Lỗi khi mã hóa mật khẩu!" });
                 }
-                // Thêm người dùng mới vào database
-                const insertQuery = `
-                    INSERT INTO user (User_ID, Full_Name, Email, Password, Phone_number, Sinh_vien, Giao_vien)
-                    VALUES (?,?,?,?,?,?,?)
-                `;
 
-                const values = [userID, fullName, email, hashedPassword, phone, sinhvien, giaovien];
-                //Tạo user database
-                connection.query(insertQuery, values, (err, result) => {
-                    connection.release();
+                // Gọi procedure để tạo tài khoản cho hệ thống ứng dụng
+                const createAppUserQuery = `CALL CreateUserAccount(?, ?, ?, ?, ?, ?, ?)`;
+                const appUserParams = [userID, fullName, email, hashedPassword, phone, sinhvien, giaovien];
+
+                connection.query(createAppUserQuery, appUserParams, (err, result) => {
                     if (err) {
-                        console.error("Lỗi khi chèn người dùng:", err.message);
+                        connection.release();
+                        console.error("Lỗi khi thực thi procedure tạo tài khoản ứng dụng:", err.message);
                         return res.status(500).json({ success: false, message: "Đăng ký thất bại!" });
                     }
 
-                    return res.json({ success: true, message: "Đăng ký thành công!" });
+                    // Gọi procedure để tạo tài khoản MySQL (với mật khẩu gốc)
+                    const createMySQLUserQuery = `CALL CreateMySQLUserAccount(?, ?)`;
+                    const mysqlUserParams = [userID, password];
+
+                    connection.query(createMySQLUserQuery, mysqlUserParams, (err, result) => {
+                        connection.release();
+                        if (err) {
+                            console.error("Lỗi khi thực thi procedure tạo tài khoản MySQL:", err.message);
+                            return res.status(500).json({ success: false, message: "Đăng ký thất bại!" });
+                        }
+
+                        // Sau khi đăng ký thành công, gửi email
+                        const transporter = nodemailer.createTransport({
+                            service: 'gmail', // Sử dụng dịch vụ Gmail
+                            auth: {
+                                user: process.env.EMAIL_USER,  // Sử dụng biến môi trường cho email
+                                pass: process.env.EMAIL_PASS   // Sử dụng biến môi trường cho mật khẩu
+                            }
+                        });
+
+                        const mailOptions = {
+                            from: process.env.EMAIL_USER, // Địa chỉ email gửi
+                            to: email,                    // Địa chỉ email người dùng đăng ký
+                            subject: 'Hướng dẫn kết nối với tài khoản MySQL',
+                            text: `Chào ${fullName},\n\n` +
+                                  `Chúc mừng bạn đã đăng ký tài khoản thành công!\n\n` +
+                                  `Dưới đây là thông tin tài khoản MySQL của bạn:\n` +
+                                  `- Tên người dùng MySQL: ${userID}\n` +
+                                  `- Mật khẩu MySQL: ${password}\n\n` +
+                                `Để kết nối với MySQL, bạn có thể sử dụng các thông tin trên với công cụ như DBeaver hoặc MySQL Workbench.\n\n` +
+                                `Server Host của bạn : yamanote.proxy.rlwy.net`
+                                `Port:25297`
+                                `Tên Database:library_management`
+                                  `Lưu ý: Hãy thay đổi mật khẩu MySQL sau khi đăng nhập lần đầu để bảo mật tài khoản.\n\n` +
+                                  `Chúc bạn sử dụng hệ thống thành công!`
+                        };
+
+                        transporter.sendMail(mailOptions, (error, info) => {
+                            if (error) {
+                                console.error("Lỗi khi gửi email:", error);
+                                return res.status(500).json({ success: false, message: "Đăng ký thành công, nhưng không thể gửi email!" });
+                            } else {
+                                console.log("Email sent: " + info.response);
+                                return res.json({ success: true, message: "Đăng ký thành công, email đã được gửi!" });
+                            }
+                        });
+                    });
                 });
             });
         });
     });
 });
+
+
+
 
 // Lấy thông tin người dùng
 app.get("/current-user", checkAuth, async (req, res) => {
@@ -791,7 +839,6 @@ app.get('/get-renew/:borrowId', async (req, res) => {
         // Gọi stored procedure để lấy thông tin mượn sách
         const [rows] = await db.query('CALL GetBorrowById(?)', [borrowId]);
 
-        // Kiểm tra nếu không tìm thấy bản ghi
         if (rows.length === 0) {
             return res.status(404).json({ message: 'Không tìm thấy thông tin mượn sách' });
         }
@@ -854,7 +901,7 @@ app.post('/add-employee', upload.none(), checkAuth, async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, 10);
 
         // Thêm nhân viên vào database
-        await db.query('CALL add_employee(?,?,?,?,?, ?)', [
+        await db.query('CALL add_employee(?, ?, ?, ?, ?, ?)', [
             adminId,      // Admin_ID từ session
             fullName,     // Full_Name
             email,        // Email
@@ -862,6 +909,7 @@ app.post('/add-employee', upload.none(), checkAuth, async (req, res) => {
             role,         // Role (Employee hoặc Admin)
             hashedPassword // Password đã mã hóa
         ]);
+
         res.json({ success: true, message: "Thêm nhân viên thành công!" });
     } catch (err) {
         console.error("Lỗi khi thêm nhân viên:", err);
@@ -1019,4 +1067,3 @@ app.post('/add-subject', upload.none(), checkAuth, async (req, res) => {
         res.status(500).json({ success: false, message: err.sqlMessage || "Lỗi máy chủ!" });
     }
 });
-
