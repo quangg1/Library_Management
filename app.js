@@ -13,6 +13,7 @@ const { getBookSeriesByAuthor } = require(__dirname + "/db_query/book_series.js"
 const session = require('express-session');
 const multer = require('multer');
 const upload = multer();
+const nodemailer = require('nodemailer');
 require('dotenv').config();
 const PORT = process.env.PORT || 3000;
 // Middleware
@@ -27,6 +28,13 @@ app.use(session({
         sameSite: 'lax'
     }
 }));
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS, // Mật khẩu ứng dụng (không phải password Gmail)
+    }
+});
 app.use((req, res, next) => {
     console.log('Session data:', req.session); // Log session mỗi request
     next();
@@ -229,10 +237,10 @@ app.post('/login', (req, res) => {
         }
 
         const query = `
-            SELECT role, User_ID AS id, Full_Name AS name, Email, Sinh_vien, Giao_vien, Password 
+            SELECT role, User_ID AS id, Full_Name AS name, Email, Sinh_vien, Giao_vien, Password,isBanned 
             FROM user WHERE Email = ?
             UNION
-            SELECT role, EmployeeID AS id, Full_Name AS name, Email, Null as Sinh_vien, Null as Giao_vien, Password 
+            SELECT role, EmployeeID AS id, Full_Name AS name, Email, Null as Sinh_vien, Null as Giao_vien, Password ,isBanned
             FROM employee WHERE Email = ?
         `;
 
@@ -251,6 +259,9 @@ app.post('/login', (req, res) => {
             const user = results[0];
 
             console.log("User retrieved:", user); // Debugging line
+            if (user.isBanned === 1) {
+                return res.status(403).json({ success: false, message: "Tài khoản của bạn đã bị đình chỉ!" });
+            }
 
             bcrypt.compare(password, user.Password, (err, isMatch) => {
                 if (err) {
@@ -353,7 +364,6 @@ app.post('/check-unique', (req, res) => {
 });
 
 // API để xử lý đăng ký
-const nodemailer = require('nodemailer');
 
 app.post('/register', (req, res) => {
     const { userID, fullName, email, password, phone, sinhvien, giaovien } = req.body;
@@ -398,7 +408,6 @@ app.post('/register', (req, res) => {
                     console.error("Lỗi khi mã hóa mật khẩu:", err ? err.message : "Mật khẩu không hợp lệ");
                     return res.status(500).json({ success: false, message: "Lỗi khi mã hóa mật khẩu!" });
                 }
-
                 // Gọi procedure để tạo tài khoản cho hệ thống ứng dụng
                 const createAppUserQuery = `CALL CreateUserAccount(?, ?, ?, ?, ?, ?, ?)`;
                 const appUserParams = [userID, fullName, email, hashedPassword, phone, sinhvien, giaovien];
@@ -420,9 +429,40 @@ app.post('/register', (req, res) => {
                             console.error("Lỗi khi thực thi procedure tạo tài khoản MySQL:", err.message);
                             return res.status(500).json({ success: false, message: "Đăng ký thất bại!" });
                         }
-
-                        // Đăng ký thành công, trả về JSON thôi (không gửi mail nữa)
-                        return res.json({ success: true, message: "Đăng ký thành công!" });
+                    
+                        // Tạo nội dung email
+                        const mailOptions = {
+                            from: 'your_email@gmail.com',
+                            to: email,
+                            subject: 'Thông tin tài khoản hệ thống',
+                            html: `
+                                <h3>Xin chào ${fullName},</h3>
+                                <p>Bạn đã đăng ký thành công tài khoản hệ thống.</p>
+                                <ul>
+                                    <li><strong>Mã người dùng:</strong> ${userID}</li>
+                                    <li><strong>Email:</strong> ${email}</li>
+                                    <li><strong>Mật khẩu:</strong> ${password}</li>
+                                </ul>
+                                <p>Vui lòng giữ kín thông tin này.</p>
+                            `
+                        };
+                    
+                        // Gửi email
+                        transporter.sendMail(mailOptions, (error, info) => {
+                            if (error) {
+                                console.error("Lỗi khi gửi email:", error.message);
+                                return res.status(500).json({
+                                    success: true,
+                                    message: "Tạo tài khoản thành công nhưng gửi email thất bại."
+                                });
+                            } else {
+                                console.log('Email đã được gửi: ' + info.response);
+                                return res.json({
+                                    success: true,
+                                    message: "Đăng ký thành công! Thông tin tài khoản đã được gửi qua email."
+                                });
+                            }
+                        });
                     });
                 });
             });
@@ -492,7 +532,42 @@ app.put("/update-user", checkAuth, async (req, res) => {
         return res.status(500).json({ error: "Lỗi máy chủ" });
     }
 });
+app.get('/:userId/balance', checkAuth, async (req, res) => {
+    const userId = req.session.user_id;
+    const query = `CALL GetUserBalance(?)`;
 
+    try {
+        const [rows] = await db.query(query, [userId]);
+
+        if (!rows[0] || rows[0].length === 0) {
+            return res.status(404).json({ success: false, message: "Không tìm thấy người dùng" });
+        }
+
+        return res.json({ success: true, balance: rows[0][0].Balance });
+    } catch (err) {
+        console.error("Lỗi khi truy vấn số dư:", err.message);
+        return res.status(500).json({ success: false, message: "Lỗi server" });
+    }
+});
+// Cap nhat so du tai khoan 
+app.post('/:userId/deposit', checkAuth, async (req, res) => {
+    const userId = req.session.user_id;
+    const { amount } = req.body;
+
+    if (!amount || isNaN(amount) || amount <= 0) {
+        return res.status(400).json({ success: false, message: "Số tiền không hợp lệ!" });
+    }
+
+    const callProcedure = `CALL UpdateUserBalance(?, ?)`;
+
+    try {
+        const [result] = await db.query(callProcedure, [userId, amount]);
+        return res.json({ success: true, message: "Nạp tiền thành công!" });
+    } catch (err) {
+        console.error("Lỗi khi gọi procedure UpdateUserBalance:", err.message);
+        return res.status(500).json({ success: false, message: "Nạp tiền thất bại!" });
+    }
+});
 // Thay đổi mật khẩu
 app.put('/change-password', async (req, res) => {
     const userId = req.session.user_id;
@@ -733,6 +808,19 @@ app.delete("/delete-employee/:id", async (req, res) => {
         res.status(500).json({ error: "Lỗi khi xóa nhân viên" });
     }
 });
+// Ban nhan vien
+app.post('/ban-employee/${id}', async (req, res) => {
+    const { id } = req.body;
+    try {
+        // Gọi thủ tục bán nhân viên
+        await db.query("CALL ban_employee(?)", [id]);
+        res.sendStatus(200);
+    } catch (err) {
+        console.error("Lỗi bán employee:", err);
+        res.status(500).json({ error: "Lỗi khi bán nhân viên" });
+    }
+})
+//Unban nhan vien
 //// Thông tin phạt ////
 app.get('/fine-detail/:borrowId', async (req, res) => {
     const { borrowId } = req.params;
@@ -789,6 +877,18 @@ app.post('/update-fine', checkAuth, upload.none(), async (req, res) => {
         res.status(500).json({ message: 'Lỗi không xác định khi cập nhật phiếu phạt.' });
     }
 });
+// API backend cho thanh toán phiếu phạt
+app.post('/pay-fine/:fineID', async (req, res) => {
+    const fineID = req.params.fineID;
+  
+    try {
+      await db.query('CALL PayFine(?)', [fineID]);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Lỗi thanh toán:', error);
+      res.status(500).json({ success: false, message: error.sqlMessage || 'Lỗi khi thanh toán.' });
+    }
+  });
 // Gia hạn ngày mượn
 app.patch('/extend-loan/:borrowId', async (req, res) => {
     const { borrowId } = req.params;

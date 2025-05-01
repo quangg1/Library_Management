@@ -94,33 +94,41 @@
       <label for="fullName">Họ tên:</label>
       <input type="text" id="fullName" />
     </div>
-
+  
     <div class="info-row">
       <label for="email">Email:</label>
       <input type="email" id="email" />
     </div>
-
+  
     <div class="info-row">
       <label for="phone">Số điện thoại:</label>
       <input type="text" id="phone" />
     </div>
-
+  
     <div class="info-row password-field">
       <label for="password">Mật khẩu:</label>
-      <input type="password" id="password" disabled value="********" style="flex: 1;"/>
+      <input type="password" id="password" disabled value="********" style="flex: 1;" />
       <button class="btn" onclick="window.location.href='/change_password.html'" style="margin-left: 15px;">
         Thay đổi
       </button>
     </div>
-
+  
+    <div class="info-row">
+      <label for="depositAmount">Nạp tiền:</label>
+      <input type="number" id="depositAmount" placeholder="Nhập số tiền cần nạp" />
+      <button class="btn" onclick="depositMoney()">Nạp tiền</button>
+      <p id="balance" style="margin-top: 10px; font-weight: bold;"></p> <!-- Không cần style display: none nữa -->
+    </div>
+  
     <div>
       <button class="btn" onclick="updateUser()">Lưu thay đổi</button>
     </div>
+  
     <h2 style="margin-top: 40px;">Sách đã mượn</h2>
     <div id="borrowedBooks">
       <p>Đang tải danh sách...</p>
     </div>
-
+  
     <div class="back-btn">
       <button class="btn" onclick="goBack()">Quay về trang chính</button>
     </div>
@@ -387,6 +395,56 @@
             console.error(err);
         });
     }
+    function fetchBalance() {
+      fetch(`/${userId}/balance`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            const balanceEl = document.getElementById('balance');
+            balanceEl.innerText = `Số dư: ${parseFloat(data.balance).toLocaleString()} VNĐ`;
+            balanceEl.style.display = 'block'; // Đảm bảo số dư hiển thị
+          } else {
+            console.error("Lỗi khi lấy số dư:", data.message);
+          }
+        })
+        .catch(err => {
+          console.error("Lỗi khi lấy số dư:", err);
+        });
+    }
+    
+    // Hàm nạp tiền
+    function depositMoney() {
+      const amount = parseInt(document.getElementById('depositAmount').value);
+      if (isNaN(amount) || amount <= 0) {
+        alert("Vui lòng nhập số tiền hợp lệ!");
+        return;
+      }
+    
+      fetch(`/${userId}/deposit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ amount })
+      })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            alert("Nạp tiền thành công!");
+            fetchBalance(); // Cập nhật lại số dư sau khi nạp tiền
+            document.getElementById('depositAmount').value = ''; // Xóa giá trị nhập vào
+          } else {
+            alert("Lỗi: " + data.message);
+          }
+        })
+        .catch(err => {
+          console.error("Lỗi khi gọi API deposit:", err);
+          alert("Lỗi kết nối server!");
+        });
+    }
+    
+    // Gọi fetchBalance khi trang được tải để hiển thị số dư ban đầu
+    window.onload = fetchBalance;
   </script>
 </body>
 </html>

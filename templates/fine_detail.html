@@ -122,6 +122,8 @@
     <button type="submit">Thêm phiếu phạt</button>
     <button class="back-btn" type="button" onclick="goBack()">Quay lại</button>
     <input type="hidden" name="Fine_ID" id="fineID">
+    <label>Thanh toán phiếu phạt (Chỉ áp dụng cho người dùng):</label>
+    <button type="button" id="paymentBtn" style="display:none;" onclick="confirmPayment()">Thanh toán</button>
   </form>
 
 
@@ -159,21 +161,73 @@ fetch('/user_type')
   .then(res => res.json())
   .then(data => {
     userRole = data.role;
-    if (userRole !== 'Employee') {
-      document.getElementById('fineForm').querySelectorAll('input, button').forEach(el => {
-        if (!el.classList.contains('back-btn')) {
-          el.disabled = true;
+
+    if (userRole === 'user') {
+      // Hiện nút Thanh toán
+      document.getElementById('paymentBtn').style.display = 'inline-block';
+
+      // Vô hiệu hóa toàn bộ input
+      document.querySelectorAll('input').forEach(input => {
+        input.disabled = true;
+      });
+
+      // Vô hiệu hóa tất cả button trừ nút Quay lại và Thanh toán
+      document.querySelectorAll('button').forEach(btn => {
+        if (!btn.classList.contains('back-btn') && btn.id !== 'paymentBtn') {
+          btn.disabled = true;
         }
       });
 
-      const warning = document.createElement('p');
-      warning.textContent = 'Bạn không có quyền thêm phiếu phạt.';
-      warning.style.color = 'red';
-      warning.style.fontWeight = 'bold';
-      warning.style.textAlign = 'center';
-      document.body.insertBefore(warning, document.getElementById('fineForm'));
+    } else {
+      // Ẩn nút Thanh toán nếu không phải user
+      document.getElementById('paymentBtn').style.display = 'none';
     }
   });
+
+// Xác nhận thanh toán trước khi thực hiện
+function confirmPayment() {
+  if (confirm('Bạn có chắc chắn muốn thanh toán phiếu phạt này?')) {
+    makePayment(); // Nếu người dùng xác nhận, gọi hàm thanh toán
+  }
+}
+
+// Hàm thực hiện thanh toán
+async function makePayment() {
+  const fineID = document.getElementById('fineID').value;
+  const fineAmount = parseFloat(document.getElementById('fineAmount').value);
+  
+  try {
+    const balanceRes = await fetch('/:userId/balance');
+    const balanceData = await balanceRes.json();
+
+    if (!balanceRes.ok || !balanceData || isNaN(parseFloat(balanceData.balance))) {
+      throw new Error('Không thể kiểm tra số dư ví.');
+    }
+
+    // Bước 2: Kiểm tra đủ tiền không
+    if (balanceData.balance < fineAmount) {
+      alert(`Số dư ví không đủ để thanh toán. Bạn cần ${fineAmount}đ nhưng chỉ có ${balanceData.balance}đ.`);
+      return;
+    }
+    const res = await fetch(`/pay-fine/${fineID}`, {
+      method: 'POST'
+    });
+    
+    if (!res.ok) {
+      throw new Error('Lỗi thanh toán. Vui lòng thử lại.');
+    }
+    
+    const data = await res.json();
+    if (data.success) {
+      alert('Thanh toán phiếu phạt thành công!');
+      window.location.href = '/user_profile'; // Chuyển hướng người dùng sau khi thanh toán thành công
+    } else {
+      alert('Lỗi thanh toán: ' + data.message);
+    }
+  } catch (error) {
+    alert('Lỗi: ' + error.message);
+  }
+}
 
 // Tải danh sách phiếu phạt theo Borrow_ID
 async function loadFineDetail() {
@@ -183,7 +237,6 @@ async function loadFineDetail() {
         alert('Không có thông tin phiếu phạt.');
         return;
       }
-  
       // Gửi yêu cầu lấy dữ liệu
       const res = await fetch(`/get-fines/${fineId}`);
       
@@ -210,7 +263,11 @@ async function loadFineDetail() {
       document.getElementById('fineAmount').value = fine.Fine_amount;
       document.getElementById('daThanhToan').value = fine.Da_thanh_toan;
       document.getElementById('soNgayTreHan').value = fine.so_ngay_tre_han;
-  
+      if (userRole === 'user' && fine.Da_thanh_toan === 0) {
+        document.getElementById('paymentBtn').style.display = 'inline-block';
+      } else {
+        document.getElementById('paymentBtn').style.display = 'none';
+      }
     } catch (error) {
       alert('Lỗi: ' + error.message);
     }

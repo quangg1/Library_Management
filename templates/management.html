@@ -164,7 +164,7 @@
                         document.getElementById("employeeList").innerHTML = "Không có nhân viên nào.";
                         return;
                     }
-        
+    
                     const table = `
                         <table>
                             <thead>
@@ -172,6 +172,7 @@
                                     <th>Họ tên</th>
                                     <th>Email</th>
                                     <th>SĐT</th>
+                                    <th>Trạng thái</th>
                                     <th>Hành động</th>
                                 </tr>
                             </thead>
@@ -181,19 +182,79 @@
                                         <td>${e.Full_Name}</td>
                                         <td>${e.Email}</td>
                                         <td>${e.Phone_number}</td>
-                                        <td><button class="btn-delete" onclick="deleteEmployee(${e.EmployeeID})">Xóa</button></td>
+                                        <td>${e.isBanned ? "Đã bị đình chỉ" : "Hoạt động"}</td>
+                                        <td>
+                                            ${e.isBanned ? 
+                                                `<button class="btn-delete" onclick="unbanEmployee(${e.EmployeeID})">Mở khóa</button>` : 
+                                                `<button class="btn-delete" onclick="banEmployee(${e.EmployeeID})">Đình chỉ</button>`}
+                                            <button class="btn-delete" onclick="deleteEmployee(${e.EmployeeID})">Xóa</button>
+                                        </td>
                                     </tr>
                                 `).join("")}
                             </tbody>
                         </table>
                     `;
-        
+    
                     document.getElementById("employeeList").innerHTML = table;
                 })
                 .catch(error => {
                     console.error('Lỗi khi lấy danh sách nhân viên:', error);
                     document.getElementById("employeeList").innerHTML = "Có lỗi xảy ra khi tải danh sách nhân viên.";
                 });
+        }
+    
+        async function banEmployee(id) {
+            const confirm = await Swal.fire({
+                title: 'Bạn có chắc?',
+                text: "Nhân viên này sẽ bị đình chỉ!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Vâng, đình chỉ!',
+                cancelButtonText: 'Hủy'
+            });
+    
+            if (confirm.isConfirmed) {
+                try {
+                    const res = await fetch(`/ban-employee/${id}`, { method: "POST" });
+                    if (res.ok) {
+                        Swal.fire('✅ Đã đình chỉ!', 'Nhân viên đã bị đình chỉ.', 'success');
+                        loadEmployees();
+                    } else {
+                        Swal.fire('❌ Lỗi', 'Không thể đình chỉ nhân viên.', 'error');
+                    }
+                } catch (err) {
+                    Swal.fire('❌ Lỗi', 'Có lỗi xảy ra khi đình chỉ.', 'error');
+                }
+            }
+        }
+    
+        async function unbanEmployee(id) {
+            const confirm = await Swal.fire({
+                title: 'Bạn có chắc?',
+                text: "Nhân viên này sẽ được mở khóa!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#28a745',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Vâng, mở khóa!',
+                cancelButtonText: 'Hủy'
+            });
+    
+            if (confirm.isConfirmed) {
+                try {
+                    const res = await fetch(`/unban-employee/${id}`, { method: "POST" });
+                    if (res.ok) {
+                        Swal.fire('✅ Đã mở khóa!', 'Nhân viên đã được mở khóa.', 'success');
+                        loadEmployees();
+                    } else {
+                        Swal.fire('❌ Lỗi', 'Không thể mở khóa nhân viên.', 'error');
+                    }
+                } catch (err) {
+                    Swal.fire('❌ Lỗi', 'Có lỗi xảy ra khi mở khóa.', 'error');
+                }
+            }
         }
         
     
