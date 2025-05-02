@@ -809,8 +809,8 @@ app.delete("/delete-employee/:id", async (req, res) => {
     }
 });
 // Ban nhan vien
-app.post('/ban-employee/${id}', async (req, res) => {
-    const { id } = req.body;
+app.post('/ban-employee/:id', async (req, res) => {
+    const { id } = req.params;
     try {
         // Gọi thủ tục bán nhân viên
         await db.query("CALL ban_employee(?)", [id]);
@@ -821,6 +821,16 @@ app.post('/ban-employee/${id}', async (req, res) => {
     }
 })
 //Unban nhan vien
+app.post('/unban-employee/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        await db.query("CALL unban_employee(?)", [id]);
+        res.sendStatus(200);
+    } catch (err) {
+        console.error("Lỗi mở khóa employee:", err);
+        res.status(500).json({ error: "Lỗi khi mở khóa nhân viên" });
+    }
+});
 //// Thông tin phạt ////
 app.get('/fine-detail/:borrowId', async (req, res) => {
     const { borrowId } = req.params;
