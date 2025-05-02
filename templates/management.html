@@ -274,6 +274,7 @@
                                     <th>Họ tên</th>
                                     <th>Email</th>
                                     <th>SĐT</th>
+                                    <th>Trạng thái</th>
                                     <th>Hành động</th>
                                 </tr>
                             </thead>
@@ -287,7 +288,13 @@
                                         </td>
                                         <td>${u.Email}</td>
                                         <td>${u.Phone_number}</td>
-                                        <td><button class="btn-delete" onclick="deleteUser(${u.User_ID})">Xóa</button></td>
+                                        <td>${u.isBanned ? "Đã bị đình chỉ" : "Hoạt động"}</td>
+                                        <td>
+                                            ${u.isBanned ? 
+                                                `<button class="btn-delete" onclick="unbanUser(${u.User_ID})">Mở khóa</button>` : 
+                                                `<button class="btn-delete" onclick="banUser(${u.User_ID})">Đình chỉ</button>`}
+                                            <button class="btn-delete" onclick="deleteUser(${u.User_ID})">Xóa</button>
+                                        </td>
                                     </tr>
                                     <tr id="borrowed-row-${u.User_ID}" style="display: none;">
                                         <td colspan="4" id="borrowed-${u.User_ID}" style="padding-left: 30px; background: #181828;"></td>
@@ -304,6 +311,60 @@
                     document.getElementById("userList").innerHTML = "Có lỗi xảy ra khi tải danh sách người dùng.";
                 });
         }
+        async function banUser(id) {
+            const confirm = await Swal.fire({
+                title: 'Bạn có chắc?',
+                text: "Người dùng này sẽ bị đình chỉ!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Vâng, đình chỉ!',
+                cancelButtonText: 'Hủy'
+            });
+        
+            if (confirm.isConfirmed) {
+                try {
+                    const res = await fetch(`/ban-user/${id}`, { method: "POST" });
+                    if (res.ok) {
+                        Swal.fire('✅ Đã đình chỉ!', 'Người dùng đã bị đình chỉ.', 'success');
+                        loadUsers();
+                    } else {
+                        Swal.fire('❌ Lỗi', 'Không thể đình chỉ người dùng.', 'error');
+                    }
+                } catch (err) {
+                    Swal.fire('❌ Lỗi', 'Có lỗi xảy ra khi đình chỉ.', 'error');
+                }
+            }
+        }
+        
+        async function unbanUser(id) {
+            const confirm = await Swal.fire({
+                title: 'Bạn có chắc?',
+                text: "Người dùng này sẽ được mở khóa!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#28a745',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Vâng, mở khóa!',
+                cancelButtonText: 'Hủy'
+            });
+        
+            if (confirm.isConfirmed) {
+                try {
+                    const res = await fetch(`/unban-user/${id}`, { method: "POST" });
+                    if (res.ok) {
+                        Swal.fire('✅ Đã mở khóa!', 'Người dùng đã được mở khóa.', 'success');
+                        loadUsers();
+                    } else {
+                        Swal.fire('❌ Lỗi', 'Không thể mở khóa người dùng.', 'error');
+                    }
+                } catch (err) {
+                    Swal.fire('❌ Lỗi', 'Có lỗi xảy ra khi mở khóa.', 'error');
+                }
+            }
+        }
+        
         
     
             async function deleteEmployee(id) {

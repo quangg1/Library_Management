@@ -831,6 +831,29 @@ app.post('/unban-employee/:id', async (req, res) => {
         res.status(500).json({ error: "Lỗi khi mở khóa nhân viên" });
     }
 });
+//Ban người dùng
+app.post('/ban-user/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        // Gọi thủ tục bán nhân viên
+        await db.query("CALL ban_user(?)", [id]);
+        res.sendStatus(200);
+    } catch (err) {
+        console.error("Lỗi bán user:", err);
+        res.status(500).json({ error: "Lỗi khi bán người dùng" });
+    }
+})
+app.post('/unban-user/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        await db.query("CALL unban_user(?)", [id]);
+        res.sendStatus(200);
+    } catch (err) {
+        console.error("Lỗi mở khóa user:", err);
+        res.status(500).json({ error: "Lỗi khi mở khóa người dùng" });
+    }
+});
+//Unban người dùng
 //// Thông tin phạt ////
 app.get('/fine-detail/:borrowId', async (req, res) => {
     const { borrowId } = req.params;
