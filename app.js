@@ -1183,3 +1183,83 @@ app.post('/add-subject', upload.none(), checkAuth, async (req, res) => {
         res.status(500).json({ success: false, message: err.sqlMessage || "Lỗi máy chủ!" });
     }
 });
+// Đề xuất sách
+app.post("/books/propose", checkAuth, async (req, res) => {
+    const {
+        book, author, publication_date, language, book_publisher,
+        ISBN, BNB_id, book_subject, earliest_publication_date,
+        publisher_id, subject_id, Author_ID, image, permission_level
+    } = req.body;
+
+    const submitted_by = req.user?.User_ID;
+
+    // Kiểm tra quyền: chỉ giáo viên
+    if (!req.user || !req.user.Giao_vien) {
+        return res.status(403).json({ error: "Chỉ giáo viên mới được đề xuất sách" });
+    }
+
+    try {
+        await db.query(
+            "CALL ProposeBookByTeacher(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [
+                book, author, publication_date, language, book_publisher,
+                ISBN, BNB_id, book_subject, earliest_publication_date,
+                publisher_id, subject_id, Author_ID, image, permission_level, submitted_by
+            ]
+        );
+        res.json({ message: "📚 Đã gửi đề xuất sách thành công!" });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "❌ Lỗi khi đề xuất sách" });
+    }
+});
+
+// Phê duyệt sách 
+app.post("/books/approve", checkAuth, async (req, res) => {
+    const employee_id = req.user?.EmployeeID;
+    const { book_id } = req.body;
+
+    // Kiểm tra quyền: chỉ Employee/Admin
+    if (!req.user || !(req.user.Role === "Employee" || req.user.Role === "Admin")) {
+        return res.status(403).json({ error: "Chỉ nhân viên hoặc admin mới được phê duyệt" });
+    }
+
+    try {
+        await db.query("CALL ApprovePendingBook(?, ?)", [employee_id, book_id]);
+        res.json({ message: "✅ Sách đã được phê duyệt và thêm vào thư viện!" });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "❌ Lỗi khi phê duyệt sách" });
+    }
+});
+
+// Từ chối sách 
+app.post("/books/reject", checkAuth, async (req, res) => {
+    const employee_id = req.user?.EmployeeID;
+    const { book_id, review_notes } = req.body;
+
+    if (!req.user || !(req.user.Role === "Employee" || req.user.Role === "Admin")) {
+        return res.status(403).json({ error: "Chỉ nhân viên hoặc admin mới được từ chối sách" });
+    }
+
+    try {
+        await db.query("CALL RejectPendingBook(?, ?, ?)", [employee_id, book_id, review_notes]);
+        res.json({ message: "🚫 Đã từ chối đề xuất sách!" });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "❌ Lỗi khi từ chối đề xuất sách" });
+    }
+});
+
+// Lấy danh sách chờ phê duyệt 
+app.get("/books/pending", checkAuth, async (req, res) => {
+    try {
+        const [results] = await db.query(
+            "SELECT * FROM books_pending_approval WHERE approval_status = 'pending'"
+        );
+        res.json({ pending_books: results });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "❌ Lỗi khi lấy danh sách sách chờ phê duyệt" });
+    }
+});
