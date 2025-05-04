@@ -432,7 +432,7 @@ app.post('/register', (req, res) => {
                     
                         // Tạo nội dung email
                         const mailOptions = {
-                            from: 'your_email@gmail.com',
+                            from: process.env.EMAIL_USER,
                             to: email,
                             subject: 'Thông tin tài khoản hệ thống',
                             html: `
@@ -443,6 +443,15 @@ app.post('/register', (req, res) => {
                                     <li><strong>Email:</strong> ${email}</li>
                                     <li><strong>Mật khẩu:</strong> ${password}</li>
                                 </ul>
+                                <p> Cách đăng nhập vô tài khoản mysql:</p>
+                                <ul>
+                                    <li><strong>Server host:</strong> ballast.proxy.rlwy.net</li>
+                                    <li><strong>Username:</strong> ${userID}</li>
+                                    <li><strong>Password:</strong> ${password}</li>
+                                    <li><strong>Port:</strong> 46857</li>
+                                    <li><strong>Database:</strong> library_management</li>
+                                </ul>
+                                <p> Lưu ý trước khi kết nốt thì hãy bật allowPublicKeyRetrieval=True</p>
                                 <p>Vui lòng giữ kín thông tin này.</p>
                             `
                         };
@@ -650,13 +659,30 @@ app.get('/borrowed-books',checkAuth, async (req, res) => {
     }
 
     try {
+        // Kiểm tra số lượng sách trước khi mượn
+        const [rows] = await db.query("SELECT quantity FROM all_book WHERE book_id = ?", [bookId]);
+
+        if (rows.length === 0) {
+            return res.status(404).json({ error: "Không tìm thấy sách." });
+        }
+
+        if (rows[0].quantity <= 0) {
+            return res.status(400).json({ error: "Sách này đã không còn trong kho để mượn." });
+        }
+        // Gọi thủ tục mượn sách
         await db.query("CALL borrow_book(?, ?, ?)", [userId, userType, bookId]);
+
         res.json({ success: true, message: "Mượn sách thành công!" });
     } catch (err) {
         console.error("Lỗi khi mượn sách:", err);
+        // Kiểm tra lỗi từ MySQL (thông qua exception)
+        if (err.sqlState === '45000' && err.sqlMessage === 'Không đủ sách để mượn.') {
+            return res.status(400).json({ error: "Không đủ sách để mượn." });
+        }
         res.status(500).json({ error: "Không thể mượn sách." });
     }
 });
+
 
 // Lấy danh sách sách đã mượn
 app.post('/add-book', upload.none(), async (req, res) => {
@@ -1010,8 +1036,7 @@ app.post('/add-employee', upload.none(), checkAuth, async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, 10);
 
         // Thêm nhân viên vào bảng employee
-        const [addEmployeeResult] = await db.query('CALL add_employee(?, ?, ?, ?, ?, ?)', [
-            userID ,
+        const [addEmployeeResult] = await db.query('CALL add_employee(?, ?, ?, ?, ?)', [
             fullName,
             email,
             phone || null,

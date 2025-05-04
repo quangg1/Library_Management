@@ -99,15 +99,21 @@
                             },
                             body: JSON.stringify({ bookId: bookId })
                         })
-                        .then(res => res.json())
-                        .then(data => {
-                            alert(data.message || "Mượn sách thành công!");
+                        .then(async res => {
+                            const data = await res.json();
+                            if (!res.ok) {
+                                // Trả về lỗi từ server (ví dụ: sách hết, chưa đăng nhập,...)
+                                alert(data.error || "Có lỗi xảy ra khi mượn sách.");
+                            } else {
+                                alert(data.message || "Mượn sách thành công!");
+                            }
                         })
                         .catch(err => {
                             console.error("Lỗi khi mượn sách:", err);
-                            alert("Có lỗi xảy ra khi mượn sách.");
+                            alert("Không thể kết nối đến máy chủ.");
                         });
                     });
+                    
                 })
                 .catch(error => {
                     console.error("Lỗi khi tải thông tin sách:", error);
