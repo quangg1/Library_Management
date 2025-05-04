@@ -129,6 +129,41 @@
     <video id="bgVideo" autoplay loop muted>
         <source src="73478-548608753_medium.mp4" type="video/mp4">
     </video>
+    <div id="hotBooks" style="
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 10px;
+    padding: 15px;
+    margin: 20px auto;
+    max-width: 300px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.2);
+    position: relative;
+">
+    <h3 style="color: #d60000; margin-bottom: 15px; text-align: center;">🔥 Sách nổi bật hôm nay</h3>
+    
+    <button id="hotPrev" style="
+        position: absolute; left: 0; top: 50%;
+        transform: translateY(-50%);
+        background: rgba(0,0,0,0.5);
+        color: white; border: none;
+        font-size: 20px; padding: 8px 12px;
+        cursor: pointer; z-index: 10;
+    ">&lt;</button>
+
+    <div id="hotBooksSlider" style="
+        display: flex;
+        transition: transform 0.4s ease;
+        width: 100%;
+    "></div>
+
+    <button id="hotNext" style="
+        position: absolute; right: 0; top: 50%;
+        transform: translateY(-50%);
+        background: rgba(0,0,0,0.5);
+        color: white; border: none;
+        font-size: 20px; padding: 8px 12px;
+        cursor: pointer; z-index: 10;
+    ">&gt;</button>
+</div>
     <div class="search-container">
         <input type="text" id="searchInput" list="suggestions" placeholder="Tìm kiếm sách...">
         <datalist id="suggestions"></datalist>
@@ -149,6 +184,8 @@
         let suggestionsList = [];
         let suggestionsFuse;
         let fuse;
+        let hotBooks = [];
+        let currentHotIndex = 0;
     
         fetch('/user_type')
         .then(res => res.json())
@@ -169,7 +206,8 @@
     
             document.body.insertBefore(greeting, document.querySelector('.search-container'));
     
-            loadBooks(); // ⭐ sau khi biết userType mới load sách
+            loadBooks();
+            loadHotBooks(); // ⭐ sau khi biết userType mới load sách
         });
     
         function loadBooks() {
@@ -208,7 +246,43 @@
                 renderBooks();
             });
         }
-    
+        fetch("/top-clicks-today")
+    .then(res => res.json())
+    .then(data => {
+        hotBooks = data;
+        renderHotBook();
+    });
+
+function renderHotBook() {
+    const container = document.getElementById("hotBooksSlider");
+    container.innerHTML = ""; // clear old content
+
+    if (hotBooks.length === 0) return;
+
+    const book = hotBooks[currentHotIndex];
+    const card = document.createElement("div");
+    card.style.minWidth = "100%";
+    card.style.textAlign = "center";
+    card.innerHTML = `
+        <img src="${book.image || 'placeholder.jpg'}" style="width:100%; border-radius:8px;">
+        <a href="/book-detail.html?id=${book.book_id}" class="book-title" onclick="recordClick(${book.book_id})" style="font-weight:bold; display:block; margin: 10px 0;">${book.book}</a>
+        <p style="font-size: 14px;">Tác giả: ${book.author}</p>
+        <p style="font-size: 14px;">Lượt click: ${book.clicks}</p>
+    `;
+    container.appendChild(card);
+}
+
+document.getElementById("hotPrev").addEventListener("click", () => {
+    if (hotBooks.length === 0) return;
+    currentHotIndex = (currentHotIndex - 1 + hotBooks.length) % hotBooks.length;
+    renderHotBook();
+});
+
+document.getElementById("hotNext").addEventListener("click", () => {
+    if (hotBooks.length === 0) return;
+    currentHotIndex = (currentHotIndex + 1) % hotBooks.length;
+    renderHotBook();
+});
         function searchBooks() {
             const input = document.getElementById("searchInput");
             const query = input.value.trim();
@@ -259,7 +333,7 @@
     
                 bookCard.innerHTML = `
                     <img src="${book.image || 'placeholder.jpg'}" alt="${book.book}">
-                    <a href="/book-detail.html?id=${book.book_id}" class="book-title">${book.book} ${star}</a>
+                    <a href="/book-detail.html?id=${book.book_id}" class="book-title" onclick="recordClick(${book.book_id})">${book.book} ${star}</a>
                     <p>Tác giả: <a href="/author.html?id=${book.Author_ID}" class="book-author">${book.author}</a></p>
                     <p>Chủ đề: <a href="/subject.html?id=${book.subject_id}" class="book-subject">${book["book subject"]}</a></p>
                     <p>Nhà xuất bản: <a href="/book_publisher.html?id=${book.publisher_id}" class="book-publisher">${book["book publisher"]}</a></p>
@@ -320,6 +394,20 @@
     
         function logout() {
             window.location.href = '/';
+        }
+        function recordClick(bookId) {
+            fetch(`/book/click/${bookId}`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    book_id: bookId
+                })
+            })
+            .catch(err => {
+                console.error("Không thể ghi lượt click:", err);
+            });
         }
     </script>
     

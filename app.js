@@ -68,7 +68,38 @@ app.get("/books", (req, res) => {
         }
     });
 });
+app.post("/book/click/:bookId", async (req, res) => {
+    const { bookId } = req.params;
 
+    try {
+        const today = new Date().toISOString().split("T")[0]; // Lấy ngày hiện tại theo định dạng YYYY-MM-DD
+
+        // Gọi thủ tục lưu lượt click
+        await db.query("CALL sp_record_click(?, ?)", [bookId, today]);
+
+        res.json({ success: true, message: "Lượt click đã được lưu." });
+    } catch (err) {
+        console.error("Lỗi khi lưu lượt click:", err);
+        res.status(500).json({ error: "Không thể lưu lượt click." });
+    }
+});
+app.get("/top-clicks-today", async (req, res) => {
+    try {
+        // ✅ Tính ngày hôm qua
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const formattedDate = yesterday.toISOString().split("T")[0]; // yyyy-mm-dd
+
+        const limit = 5;
+
+        const [rows] = await db.query(`CALL sp_top_clicks_today(?, ?)`, [formattedDate, limit]);
+
+        res.json(rows[0]); // lấy kết quả từ thủ tục
+    } catch (err) {
+        console.error("Lỗi khi lấy top clicks:", err);
+        res.status(500).json({ error: "Không thể lấy dữ liệu." });
+    }
+});
 // Trang chính
 app.get("/index.html",checkAuth, (req, res) => {
     res.sendFile(path.join(__dirname, "templates", "index.html"));

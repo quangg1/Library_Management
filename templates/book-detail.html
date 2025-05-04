@@ -84,13 +84,31 @@
                     const bookDetail = document.getElementById("bookDetail");
                     bookDetail.innerHTML = `
                         <img src="${book.image || 'placeholder.jpg'}" alt="${book.book}">
-                        <h2>${book.book}</h2>
+                        <h2 id="bookTitle">${book.book}</h2>
                         <p><strong>Tác giả:</strong> ${book.author}</p>
                         <p><strong>Nhà xuất bản:</strong> ${book["book publisher"]}</p>
                         <p><strong>Chủ đề:</strong> ${book["book subject"]}</p>
                         <p><strong>ISBN:</strong> ${book.ISBN}</p>
                         <button id="borrowBtn" class="back-btn" style="background: #28a745;">Mượn sách</button>
                     `;
+                    document.getElementById("bookTitle").addEventListener("click", () => {
+                        fetch(`/book/click/${bookId}`, {  // Đường dẫn gọi API để lưu lượt click
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json"
+                            },
+                            body: JSON.stringify({ bookId: bookId })
+                        })
+                        .then(async res => {
+                            const data = await res.json();
+                            if (!res.ok) {
+                                console.error(data.error || "Không thể lưu lượt click.");
+                            }
+                        })
+                        .catch(err => {
+                            console.error("Lỗi khi lưu lượt click:", err);
+                        });
+                    });
                     document.getElementById("borrowBtn").addEventListener("click", () => {
                         fetch("/borrow", {
                             method: "POST",
