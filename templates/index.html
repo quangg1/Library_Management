@@ -117,6 +117,93 @@
         .navbar button:hover {
             background-color: #0056b3;
         }
+        .hot-today-slider {
+            width: 100%;
+            position: relative;
+            margin: 20px auto;
+            background: #f8f9fa;
+            border-radius: 10px;
+            overflow: hidden;
+            padding: 10px;
+          }
+          
+          .slider-content {
+            text-align: center;
+          }
+          
+          .slider-controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+          }
+          
+          .slider-controls button {
+            font-size: 20px;
+            padding: 5px 10px;
+            margin-left: 5px;
+            border: none;
+            background-color: #333;
+            color: #fff;
+            border-radius: 5px;
+            cursor: pointer;
+          }
+          
+          /* Bố cục giữa */
+          .main-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 20px;
+            margin: 20px;
+          }
+          
+          /* Danh sách sách */
+          .books-section {
+            flex: 1;
+          }
+          
+          .book-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 20px;
+          }
+          
+          /* Sidebar phải */
+          .hot-side-slider {
+            width: 260px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            position: sticky;
+            top: 20px;
+          }
+          
+          .hot-box {
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 10px;
+          }
+          
+          .hot-box h3 {
+            margin-bottom: 10px;
+            font-size: 16px;
+          }
+          
+          .hot-box ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+          }
+          
+          .hot-box li {
+            margin-bottom: 8px;
+          }
+          
+          .hot-box li a {
+            text-decoration: none;
+            color: #007bff;
+          }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/fuse.js"></script>
 </head>
@@ -168,11 +255,24 @@
         <input type="text" id="searchInput" list="suggestions" placeholder="Tìm kiếm sách...">
         <datalist id="suggestions"></datalist>
     </div>
-    <div class="book-container" id="bookContainer"></div>
-    <div class="pagination" id="pagination">
-        <button id="prevPage" disabled>Trước</button>
-        <span id="pageNumbers"></span>
-        <button id="nextPage">Sau</button>
+    <div class="main-content" style="display: flex; gap: 20px; align-items: flex-start; margin: 20px;">
+        <!-- Danh sách sách -->
+        <div class="books-section" style="flex: 1;">
+            <div class="book-container" id="bookContainer"></div>
+            <div class="pagination" id="pagination">
+                <button id="prevPage" disabled>Trước</button>
+                <span id="pageNumbers"></span>
+                <button id="nextPage">Sau</button>
+            </div>
+        </div>
+<div class="hot-box" style="background: #fff; border: 1px solid #ccc; border-radius: 8px; padding: 10px;">
+    <div style="display: flex; gap: 10px; justify-content: center; margin-bottom: 10px;">
+        <button id="btnWeek" style="padding: 6px 12px; border: none; border-radius: 5px; background-color: #007bff; color: white;">Top Tuần</button>
+        <button id="btnMonth" style="padding: 6px 12px; border: none; border-radius: 5px; background-color: #ccc;">Top Tháng</button>
+    </div>
+    <ul id="hotList" style="list-style: none; padding-left: 0;"></ul>
+</div>
+
     </div>
     
     <script>
@@ -186,6 +286,8 @@
         let fuse;
         let hotBooks = [];
         let currentHotIndex = 0;
+        let weekBooks = [];
+        let monthBooks = [];
     
         fetch('/user_type')
         .then(res => res.json())
@@ -252,6 +354,55 @@
         hotBooks = data;
         renderHotBook();
     });
+    fetch("/top-clicks-week")
+    .then(res => res.json())
+    .then(data => {
+        weekBooks = data;
+        renderHotList(weekBooks); // mặc định hiển thị top tuần
+    });
+
+fetch("/top-clicks-month")
+    .then(res => res.json())
+    .then(data => {
+        monthBooks = data;
+    });
+
+function renderHotList(data) {
+    const list = document.getElementById("hotList");
+    list.innerHTML = '';
+
+    data.forEach(book => {
+        const li = document.createElement("li");
+        li.style.display = 'flex';
+        li.style.alignItems = 'center';
+        li.style.marginBottom = '10px';
+
+        li.innerHTML = `
+            <img src="${book.image || 'placeholder.jpg'}" alt="${book.book}" style="width: 50px; height: 70px; object-fit: cover; border-radius: 4px; margin-right: 10px;">
+            <div style="text-align: left;">
+                <a href="/book-detail.html?id=${book.book_id}" onclick="recordClick(${book.book_id})" style="font-weight: bold; color: #007bff; text-decoration: none;">${book.book}</a>
+                <div style="font-size: 13px; color: #888;">👁 ${book.total_clicks} lượt xem</div>
+            </div>
+        `;
+        list.appendChild(li);
+    });
+}
+
+document.getElementById("btnWeek").addEventListener("click", () => {
+    renderHotList(weekBooks);
+    document.getElementById("btnWeek").style.backgroundColor = "#007bff";
+    document.getElementById("btnWeek").style.color = "white";
+    document.getElementById("btnMonth").style.backgroundColor = "#ccc";
+    document.getElementById("btnMonth").style.color = "black";
+});
+
+document.getElementById("btnMonth").addEventListener("click", () => {
+    renderHotList(monthBooks);
+    document.getElementById("btnMonth").style.backgroundColor = "#007bff";
+    document.getElementById("btnMonth").style.color = "white";
+    document.getElementById("btnWeek").style.backgroundColor = "#ccc";
+    document.getElementById("btnWeek").style.color = "black";
+});
 
 function renderHotBook() {
     const container = document.getElementById("hotBooksSlider");

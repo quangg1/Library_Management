@@ -100,6 +100,38 @@ app.get("/top-clicks-today", async (req, res) => {
         res.status(500).json({ error: "Không thể lấy dữ liệu." });
     }
 });
+app.get("/top-clicks-week", async (req, res) => {
+    try {
+        // ✅ Lấy ngày hiện tại
+        const today = new Date();
+        const formattedDate = today.toISOString().split("T")[0]; // yyyy-mm-dd
+
+        const limit = 5;
+
+        const [rows] = await db.query(`CALL sp_top_clicks_week(?, ?)`, [formattedDate, limit]);
+
+        res.json(rows[0]); // trả về danh sách top clicks trong tuần
+    } catch (err) {
+        console.error("Lỗi khi lấy top clicks tuần:", err);
+        res.status(500).json({ error: "Không thể lấy dữ liệu." });
+    }
+});
+app.get("/top-clicks-month", async (req, res) => {
+    try {
+        // ✅ Lấy ngày hiện tại
+        const today = new Date();
+        const formattedDate = today.toISOString().split("T")[0]; // yyyy-mm-dd
+
+        const limit = 5;
+
+        const [rows] = await db.query(`CALL sp_top_clicks_month(?, ?)`, [formattedDate, limit]);
+
+        res.json(rows[0]); // trả về danh sách top clicks trong tháng
+    } catch (err) {
+        console.error("Lỗi khi lấy top clicks tháng:", err);
+        res.status(500).json({ error: "Không thể lấy dữ liệu." });
+    }
+});
 // Trang chính
 app.get("/index.html",checkAuth, (req, res) => {
     res.sendFile(path.join(__dirname, "templates", "index.html"));
