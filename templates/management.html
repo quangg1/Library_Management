@@ -154,96 +154,178 @@
         }
     
         function loadEmployees() {
-            fetch("/employees")
-                .then(res => res.json())
-                .then(data => {
-                    // Lấy mảng nhân viên từ phản hồi (mảng đầu tiên)
-                    const employees = data[0];
-                    
-                    if (employees.length === 0) {
-                        document.getElementById("employeeList").innerHTML = "Không có nhân viên nào.";
-                        return;
-                    }
-        
-                    const table = `
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Họ tên</th>
-                                    <th>Email</th>
-                                    <th>SĐT</th>
-                                    <th>Hành động</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${employees.map(e => `
-                                    <tr>
-                                        <td>${e.Full_Name}</td>
-                                        <td>${e.Email}</td>
-                                        <td>${e.Phone_number}</td>
-                                        <td><button class="btn-delete" onclick="deleteEmployee(${e.EmployeeID})">Xóa</button></td>
-                                    </tr>
-                                `).join("")}
-                            </tbody>
-                        </table>
-                    `;
-        
-                    document.getElementById("employeeList").innerHTML = table;
-                })
-                .catch(error => {
-                    console.error('Lỗi khi lấy danh sách nhân viên:', error);
-                    document.getElementById("employeeList").innerHTML = "Có lỗi xảy ra khi tải danh sách nhân viên.";
-                });
+    fetch("/employees")
+        .then(res => res.json())
+        .then(data => {
+            const employees = data[0];
+            if (employees.length === 0) {
+                document.getElementById("employeeList").innerHTML = "Không có nhân viên nào.";
+                return;
+            }
+
+            const table = `
+        <table>
+            <thead>
+                <tr>
+                    <th>Họ tên</th>
+                    <th>Email</th>
+                    <th>SĐT</th>
+                    <th>Hành động</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${employees.map(e => `
+                    <tr>
+                        <td>${e.Full_Name}</td>
+                        <td>${e.Email}</td>
+                        <td>${e.Phone_number}</td>
+                        <td>
+                            <button class="btn-delete" onclick="deleteEmployee(${e.EmployeeID})">Xóa</button>
+                            <button class="btn-ban" id="ban-btn-${e.EmployeeID}" 
+                                    onclick="toggleBanEmployee(${e.EmployeeID}, ${e.isBanned ? 1 : 0})"
+                                    style="background-color: ${e.isBanned ? '#dc3545' : '#28a745'}; margin-left: 10px;">
+                                ${e.isBanned ? 'Unban' : 'Ban'}
+                            </button>
+                        </td>
+                    </tr>
+                `).join("")}
+            </tbody>
+        </table>
+    `;
+
+            document.getElementById("employeeList").innerHTML = table;
+        })
+        .catch(error => {
+            console.error('Lỗi khi lấy danh sách nhân viên:', error);
+            document.getElementById("employeeList").innerHTML = "Có lỗi xảy ra khi tải danh sách nhân viên.";
+        });
+}
+
+async function toggleBanEmployee(employeeId, isBanned) {
+    const action = isBanned ? 'unban' : 'ban';
+    const confirm = await Swal.fire({
+        title: 'Bạn có chắc?',
+        text: action === 'ban' ? "Nhân viên này sẽ bị cấm!" : "Nhân viên này sẽ được bỏ cấm!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: action === 'ban' ? 'Vâng, cấm đi!' : 'Vâng, bỏ cấm!',
+        cancelButtonText: 'Hủy'
+    });
+
+    if (confirm.isConfirmed) {
+        try {
+            const res = await fetch(`/toggle-ban-employee/${employeeId}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action })
+            });
+
+            const result = await res.json();
+            if (res.ok) {
+                Swal.fire('✅ Thành công!', `Nhân viên đã được ${action === 'ban' ? 'cấm' : 'bỏ cấm'}.`, 'success');
+                loadEmployees(); // Tải lại danh sách để cập nhật trạng thái
+            } else {
+                Swal.fire('❌ Lỗi', result.error || `Không thể ${action === 'ban' ? 'cấm' : 'bỏ cấm'} nhân viên.`, 'error');
+            }
+        } catch (err) {
+            Swal.fire('❌ Lỗi', 'Có lỗi xảy ra khi thực hiện hành động.', 'error');
         }
+    }
+}
+        
         
     
         function loadUsers() {
-            fetch("/users")
-                .then(res => res.json())
-                .then(users => {
-                    if (users.length === 0) {
-                        document.getElementById("userList").innerHTML = "Không có người dùng nào.";
-                        return;
-                    }
-        
-                    const table = `
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Họ tên</th>
-                                    <th>Email</th>
-                                    <th>SĐT</th>
-                                    <th>Hành động</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${users.map(u => `
-                                    <tr>
-                                        <td>
-                                            <span class="user-name" onclick="toggleBooks(${u.User_ID})" style="cursor:pointer; color:#4db8ff;">
-                                                ${u.Full_Name}
-                                            </span>
-                                        </td>
-                                        <td>${u.Email}</td>
-                                        <td>${u.Phone_number}</td>
-                                        <td><button class="btn-delete" onclick="deleteUser(${u.User_ID})">Xóa</button></td>
-                                    </tr>
-                                    <tr id="borrowed-row-${u.User_ID}" style="display: none;">
-                                        <td colspan="4" id="borrowed-${u.User_ID}" style="padding-left: 30px; background: #181828;"></td>
-                                    </tr>
-                                `).join("")}
-                            </tbody>
-                        </table>
-                    `;
-        
-                    document.getElementById("userList").innerHTML = table;
-                })
-                .catch(error => {
-                    console.error('Lỗi khi lấy danh sách người dùng:', error);
-                    document.getElementById("userList").innerHTML = "Có lỗi xảy ra khi tải danh sách người dùng.";
-                });
+    fetch("/users")
+        .then(res => res.json())
+        .then(users => {
+            if (users.length === 0) {
+                document.getElementById("userList").innerHTML = "Không có người dùng nào.";
+                return;
+            }
+
+            const table = `
+        <table>
+            <thead>
+                <tr>
+                    <th>Họ tên</th>
+                    <th>Email</th>
+                    <th>SĐT</th>
+                    <th>Hành động</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${users.map(u => `
+                    <tr>
+                        <td>
+                            <span class="user-name" onclick="toggleBooks(${u.User_ID})" style="cursor:pointer; color:#4db8ff;">
+                                ${u.Full_Name}
+                            </span>
+                        </td>
+                        <td>${u.Email}</td>
+                        <td>${u.Phone_number}</td>
+                        <td>
+                            <button class="btn-delete" onclick="deleteUser(${u.User_ID})">Xóa</button>
+                            <button class="btn-ban" id="ban-btn-${u.User_ID}"
+                                    onclick="toggleBanUser(${u.User_ID}, ${u.isBanned ? 1 : 0})"
+                                    style="background-color: ${u.isBanned ? '#dc3545' : '#28a745'}; margin-left: 10px;">
+                                ${u.isBanned ? 'Unban' : 'Ban'}
+                            </button>
+                        </td>
+                    </tr>
+                    <tr id="borrowed-row-${u.User_ID}" style="display: none;">
+                        <td colspan="4" id="borrowed-${u.User_ID}" style="padding-left: 30px; background: #181828;"></td>
+                    </tr>
+                `).join("")}
+            </tbody>
+        </table>
+    `;
+
+            document.getElementById("userList").innerHTML = table;
+        })
+        .catch(error => {
+            console.error('Lỗi khi lấy danh sách người dùng:', error);
+            document.getElementById("userList").innerHTML = "Có lỗi xảy ra khi tải danh sách người dùng.";
+        });
+}
+
+// Hàm toggleBanUser cho người dùng
+async function toggleBanUser(userId, isBanned) {
+    const action = isBanned ? 'unban' : 'ban';
+    const confirm = await Swal.fire({
+        title: 'Bạn có chắc?',
+        text: action === 'ban' ? "Người dùng này sẽ bị cấm!" : "Người dùng này sẽ được bỏ cấm!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: action === 'ban' ? 'Vâng, cấm đi!' : 'Vâng, bỏ cấm!',
+        cancelButtonText: 'Hủy'
+    });
+
+    if (confirm.isConfirmed) {
+        try {
+            const res = await fetch(`/toggle-ban-user/${userId}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action })
+            });
+
+            const result = await res.json();
+            if (res.ok) {
+                Swal.fire('✅ Thành công!', `Người dùng đã được ${action === 'ban' ? 'cấm' : 'bỏ cấm'}.`, 'success');
+                loadUsers(); // Tải lại danh sách để cập nhật trạng thái
+            } else {
+                Swal.fire('❌ Lỗi', result.error || `Không thể ${action === 'ban' ? 'cấm' : 'bỏ cấm'} người dùng.`, 'error');
+            }
+        } catch (err) {
+            console.error('Lỗi khi thực hiện hành động ban/unban người dùng:', err);
+            Swal.fire('❌ Lỗi', 'Lỗi kết nối máy chủ, vui lòng thử lại!', 'error');
         }
-        
+    }
+}
     
             async function deleteEmployee(id) {
                 const confirm = await Swal.fire({
