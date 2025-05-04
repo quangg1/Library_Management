@@ -36,10 +36,50 @@ app.use(express.static(path.join(__dirname, "static")));
 app.use(express.json());
 function checkAuth(req, res, next) {
     if (!req.session.user_id) {
-        console.log('Unauthorized access - No session user_id'); // Debug
+        console.log('Unauthorized access - No session user_id');
         return res.status(401).json({ success: false, message: "Bạn cần đăng nhập." });
     }
-    next();
+
+    pool.getConnection((err, connection) => {
+        if (err) {
+            console.error("Lỗi kết nối database:", err);
+            return res.status(500).json({ success: false, message: "Lỗi máy chủ!" });
+        }
+
+        // Kiểm tra isBanned dựa trên role
+        let query;
+        if (req.session.role === 'Employee' || req.session.role === 'Admin') {
+            query = `SELECT isBanned FROM employee WHERE EmployeeID = ?`;
+        } else {
+            query = `SELECT isBanned FROM user WHERE User_ID = ?`;
+        }
+
+        connection.query(query, [req.session.user_id], (err, results) => {
+            connection.release();
+
+            if (err) {
+                console.error("Lỗi truy vấn:", err);
+                return res.status(500).json({ success: false, message: "Lỗi máy chủ!" });
+            }
+
+            if (results.length === 0) {
+                return res.status(404).json({ success: false, message: "Không tìm thấy tài khoản!" });
+            }
+
+            if (results[0].isBanned === 1) {
+                // Hủy session nếu tài khoản bị ban
+                req.session.destroy(err => {
+                    if (err) {
+                        console.error("Lỗi hủy session:", err);
+                        return res.status(500).json({ success: false, message: "Lỗi máy chủ!" });
+                    }
+                    return res.status(403).json({ success: false, message: "Tài khoản của bạn đã bị đình chỉ!" });
+                });
+            } else {
+                next();
+            }
+        });
+    });
 }
 // Trang login
 app.get("/", (req, res) => {
@@ -229,10 +269,10 @@ app.post('/login', (req, res) => {
         }
 
         const query = `
-            SELECT role, User_ID AS id, Full_Name AS name, Email, Sinh_vien, Giao_vien, Password 
+            SELECT role, User_ID AS id, Full_Name AS name, Email, Sinh_vien, Giao_vien, Password, isBanned 
             FROM user WHERE Email = ?
             UNION
-            SELECT role, EmployeeID AS id, Full_Name AS name, Email, Null as Sinh_vien, Null as Giao_vien, Password 
+            SELECT role, EmployeeID AS id, Full_Name AS name, Email, NULL as Sinh_vien, NULL as Giao_vien, Password, isBanned 
             FROM employee WHERE Email = ?
         `;
 
@@ -250,7 +290,10 @@ app.post('/login', (req, res) => {
 
             const user = results[0];
 
-            console.log("User retrieved:", user); // Debugging line
+            // Kiểm tra trạng thái isBanned
+            if (user.isBanned === 1) {
+                return res.status(403).json({ success: false, message: "Tài khoản của bạn đã bị đình chỉ!" });
+            }
 
             bcrypt.compare(password, user.Password, (err, isMatch) => {
                 if (err) {
@@ -259,7 +302,6 @@ app.post('/login', (req, res) => {
                 }
 
                 if (!isMatch) {
-                    console.log("Password match failed"); // Debugging line
                     return res.status(401).json({ success: false, message: "Mật khẩu không chính xác!" });
                 }
 
@@ -267,9 +309,9 @@ app.post('/login', (req, res) => {
                 req.session.user_id = user.id;
                 req.session.role = user.role;
                 req.session.email = user.email;
-
                 // Xác định nếu là Sinh viên hay Giáo viên
                 let userType;
+
                 if (user.role === 'Admin') {
                     userType = 'admin';
                 } else if (user.role === 'Employee') {
@@ -281,7 +323,6 @@ app.post('/login', (req, res) => {
                 } else {
                     userType = 'user'; // fallback nếu không khớp cái nào
                 }
-
                 req.session.userType = userType;
                 req.session.save(err => {
                     if (err) {
@@ -295,7 +336,7 @@ app.post('/login', (req, res) => {
                         userId: user.id,
                         email: user.email,
                         fullName: user.name,
-                        userType: userType 
+                        userType: userType
                     });
                 });
             });
@@ -877,8 +918,7 @@ app.post('/add-employee', upload.none(), checkAuth, async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, 10);
 
         // Thêm nhân viên vào bảng employee
-        const [addEmployeeResult] = await db.query('CALL add_employee(?, ?, ?, ?, ?, ?)', [
-            userID ,
+        const [addEmployeeResult] = await db.query('CALL add_employee(?, ?, ?, ?, ?)', [
             fullName,
             email,
             phone || null,
@@ -935,8 +975,7 @@ app.post('/add-user', upload.none(), checkAuth, async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, 10);
 
         // Thêm người dùng vào database
-        await db.query('CALL add_user(?, ?, ?, ?, ?, ?, ?)', [
-            userId,
+        await db.query('CALL add_user(?, ?, ?, ?, ?, ?)', [
             fullName,
             email,
             hashedPassword,
@@ -1048,5 +1087,83 @@ app.post('/add-subject', upload.none(), checkAuth, async (req, res) => {
     } catch (err) {
         console.error("Lỗi khi thêm chủ đề:", err);
         res.status(500).json({ success: false, message: err.sqlMessage || "Lỗi máy chủ!" });
+    }
+});
+// Ban/Unban nhân viên
+app.post("/toggle-ban-employee/:id", checkAuth, async (req, res) => {
+    const employeeId = parseInt(req.params.id, 10); // Chuyển id thành số nguyên
+    const { action } = req.body;
+
+    // Kiểm tra employeeId hợp lệ
+    if (isNaN(employeeId) || employeeId <= 0) {
+        return res.status(400).json({ success: false, error: "Mã nhân viên không hợp lệ." });
+    }
+
+    // Kiểm tra action hợp lệ
+    if (!['ban', 'unban'].includes(action)) {
+        return res.status(400).json({ success: false, error: "Hành động không hợp lệ. Chỉ chấp nhận 'ban' hoặc 'unban'." });
+    }
+
+    const procedure = action === 'ban' ? 'ban_employee' : 'unban_employee';
+
+    try {
+        // Gọi stored procedure
+        await db.query(`CALL ${procedure}(?)`, [employeeId]);
+
+        res.json({
+            success: true,
+            message: `Nhân viên đã được ${action === 'ban' ? 'cấm' : 'bỏ cấm'} thành công.`
+        });
+    } catch (err) {
+        console.error(`Lỗi khi gọi ${procedure} cho nhân viên ${employeeId}:`, err);
+
+        // Xử lý lỗi từ MySQL (ví dụ: SIGNAL trong procedure)
+        if (err.sqlState === '45000') {
+            return res.status(400).json({ success: false, error: err.sqlMessage });
+        } else {
+            return res.status(500).json({
+                success: false,
+                error: err.sqlMessage || "Lỗi máy chủ khi thực hiện hành động."
+            });
+        }
+    }
+});
+//Ban user
+app.post("/toggle-ban-user/:id", checkAuth, async (req, res) => {
+    const userId = req.params.id; // User_ID là kiểu INT hoặc VARCHAR tùy bảng
+    const { action } = req.body;
+
+    // Kiểm tra userId hợp lệ
+    if (!userId) {
+        return res.status(400).json({ success: false, error: "Mã người dùng không hợp lệ." });
+    }
+
+    // Kiểm tra action hợp lệ
+    if (!['ban', 'unban'].includes(action)) {
+        return res.status(400).json({ success: false, error: "Hành động không hợp lệ. Chỉ chấp nhận 'ban' hoặc 'unban'." });
+    }
+
+    const procedure = action === 'ban' ? 'ban_user' : 'unban_user';
+
+    try {
+        // Gọi stored procedure
+        await db.query(`CALL ${procedure}(?)`, [userId]);
+
+        res.json({
+            success: true,
+            message: `Người dùng đã được ${action === 'ban' ? 'cấm' : 'bỏ cấm'} thành công.`
+        });
+    } catch (err) {
+        console.error(`Lỗi khi gọi ${procedure} cho người dùng ${userId}:`, err);
+
+        // Xử lý lỗi từ MySQL (ví dụ: SIGNAL trong procedure)
+        if (err.sqlState === '45000') {
+            return res.status(400).json({ success: false, error: err.sqlMessage });
+        } else {
+            return res.status(500).json({
+                success: false,
+                error: err.sqlMessage || "Lỗi máy chủ khi thực hiện hành động."
+            });
+        }
     }
 });
