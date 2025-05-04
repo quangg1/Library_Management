@@ -267,7 +267,7 @@ function renderHotBook() {
         <img src="${book.image || 'placeholder.jpg'}" style="width:100%; border-radius:8px;">
         <a href="/book-detail.html?id=${book.book_id}" class="book-title" onclick="recordClick(${book.book_id})" style="font-weight:bold; display:block; margin: 10px 0;">${book.book}</a>
         <p style="font-size: 14px;">Tác giả: ${book.author}</p>
-        <p style="font-size: 14px;">Lượt click: ${book.clicks}</p>
+        <p style="font-size: 14px;">Lượt xem: ${book.clicks}</p>
     `;
     container.appendChild(card);
 }
